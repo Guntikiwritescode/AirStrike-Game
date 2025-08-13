@@ -73,6 +73,9 @@ export default function GamePage() {
       return;
     }
     
+    // Add bounds checking before grid access
+    if (!grid[y] || !grid[y][x]) return;
+    
     const prior = grid[y][x].posteriorProbability;
     await performRecon(x, y, sensor);
     const posterior = grid[y][x].posteriorProbability;
@@ -119,7 +122,11 @@ export default function GamePage() {
   useEffect(() => {
     if (!mounted) {
       setMounted(true);
-      loadFromLocalStorage();
+      const loaded = loadFromLocalStorage();
+      // If loading from localStorage failed or there's no saved state, initialize a new game
+      if (!loaded) {
+        initializeGame();
+      }
       return;
     }
 

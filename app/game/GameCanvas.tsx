@@ -567,7 +567,7 @@ export default function GameCanvas({
       </div>
 
       {/* Cell Info */}
-      {hoveredCell && (
+      {hoveredCell && grid[hoveredCell.y] && grid[hoveredCell.y][hoveredCell.x] && (
         <div className="text-sm text-slate-300 text-center">
           <div>Cell ({hoveredCell.x}, {hoveredCell.y})</div>
           <div className="flex justify-center space-x-4 mt-1">
