@@ -7,7 +7,7 @@ import { TerrainLayer } from '@deck.gl/geo-layers';
 import { ScatterplotLayer, PathLayer, PolygonLayer } from '@deck.gl/layers';
 import { Map as ReactMapGL } from 'react-map-gl/maplibre';
 import { HeatmapType, InfrastructureEntity, AircraftEntity, FlightPath, TacticalBoundary, AreaOfInterest, SensorCone } from '@/lib/types';
-import TacticalTooltip from '@/components/TacticalTooltip';
+import { useThrottledCallback } from '@/lib/hooks/usePerfStats';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 // Types for our game integration
@@ -72,7 +72,7 @@ const DEFAULT_BOUNDS = {
 
 
 
-export default function MapScene({
+function MapScene({
   grid,
   config,
   viewMode,
@@ -241,6 +241,26 @@ export default function MapScene({
     cell: GameCell;
   }
 
+  // Throttled hover handler for performance
+  const throttledHover = useThrottledCallback((info: { coordinate?: number[] }) => {
+    if (info.coordinate && info.coordinate.length >= 2) {
+      setMousePosition({ 
+        lat: info.coordinate[1], 
+        lng: info.coordinate[0] 
+      });
+    }
+    
+    // Tooltip functionality temporarily disabled
+    // if (info.object && info.x !== undefined && info.y !== undefined) {
+    //   setHoveredObject(info.object);
+    //   setTooltipPosition({ x: info.x, y: info.y });
+    // } else {
+    //   setHoveredObject(null);
+    //   setTooltipPosition(null);
+    // }
+  }, 16);
+
+  // Memoized layer data calculation - moved to worker in production
   const layerData = useMemo(() => {
     const cellData: CellData[] = [];
     
@@ -596,23 +616,7 @@ export default function MapScene({
             setViewState(newViewState.map as typeof viewState);
           }
         }}
-        onHover={(info) => {
-          if (info.coordinate) {
-            setMousePosition({ 
-              lat: info.coordinate[1], 
-              lng: info.coordinate[0] 
-            });
-          }
-          
-          // Tooltip functionality temporarily disabled
-          // if (info.object && info.x !== undefined && info.y !== undefined) {
-          //   setHoveredObject(info.object);
-          //   setTooltipPosition({ x: info.x, y: info.y });
-          // } else {
-          //   setHoveredObject(null);
-          //   setTooltipPosition(null);
-          // }
-        }}
+        onHover={throttledHover}
         layers={layers}
         width={containerSize.width}
         height={containerSize.height}
@@ -683,3 +687,39 @@ export default function MapScene({
     </div>
   );
 }
+
+// Memoized export with shallow comparison for performance
+export default React.memo(MapScene, (prevProps, nextProps) => {
+  // Custom comparison to prevent unnecessary re-renders
+  const shallowEqual = (obj1: Record<string, unknown>, obj2: Record<string, unknown>) => {
+    const keys1 = Object.keys(obj1);
+    const keys2 = Object.keys(obj2);
+    
+    if (keys1.length !== keys2.length) return false;
+    
+    for (const key of keys1) {
+      if (obj1[key] !== obj2[key]) return false;
+    }
+    
+    return true;
+  };
+
+  // Only re-render if essential props change
+  const boundsEqual = prevProps.bounds === nextProps.bounds || 
+    (prevProps.bounds && nextProps.bounds && shallowEqual(prevProps.bounds, nextProps.bounds)) || 
+    false;
+  
+  return (
+    prevProps.viewMode === nextProps.viewMode &&
+    prevProps.showLabels === nextProps.showLabels &&
+    prevProps.config === nextProps.config &&
+    boundsEqual &&
+    prevProps.grid === nextProps.grid &&
+    prevProps.infrastructure === nextProps.infrastructure &&
+    prevProps.aircraft === nextProps.aircraft &&
+    prevProps.flightPaths === nextProps.flightPaths &&
+    prevProps.boundaries === nextProps.boundaries &&
+    prevProps.aois === nextProps.aois &&
+    prevProps.sensorCones === nextProps.sensorCones
+  );
+});

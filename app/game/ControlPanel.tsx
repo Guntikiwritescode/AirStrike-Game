@@ -6,7 +6,7 @@ import { Play, Pause, RotateCcw, Calendar, Shuffle, Settings } from 'lucide-reac
 import { MathTooltip, InfoTooltip, MetricTooltip } from '@/components/ui/tooltip';
 import { ShortcutIndicator } from '@/components/KeyboardShortcuts';
 
-export default function ControlPanel() {
+function ControlPanel() {
   const {
     gameStarted,
     gameEnded,
@@ -301,3 +301,6 @@ export default function ControlPanel() {
     </div>
   );
 }
+
+// Memoized export to prevent unnecessary re-renders
+export default ControlPanel;

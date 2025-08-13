@@ -11,12 +11,14 @@ import MapScene from '@/components/MapScene';
 import { generateSampleInfrastructure, generateSampleAircraft } from '@/lib/3d-entities';
 import { generateSampleBoundaries, generateSampleAOIs, generateSampleSensorCones } from '@/lib/tactical-overlays';
 import AnalyticsPanel from './AnalyticsPanel';
+import DebugPanel, { useDebugPanelToggle } from '@/components/DebugPanel';
+import { useThrottledCallback } from '@/lib/hooks/usePerfStats';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import BayesExplanationModal from '@/components/BayesExplanationModal';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LayerToggle } from '@/components/ui/layer-toggle';
-import { DebugPanel } from '@/components/ui/debug-panel';
+
 import { AccordionControlPanel } from '@/components/ui/accordion-control-panel';
 import { tacticalToast } from '@/components/ui/toast-provider';
 import { HeatmapType } from '@/lib/types';
@@ -67,9 +69,12 @@ export default function GamePage() {
   
   // Layer and debug state
   const [activeLayer, setActiveLayer] = useState<HeatmapType>('posterior');
-  const [showDebugPanel, setShowDebugPanel] = useState(false);
+
   const [showLabels, setShowLabels] = useState(false);
   const [use3DMap, setUse3DMap] = useState(true);
+
+  // Performance monitoring
+  const [debugVisible, toggleDebug] = useDebugPanelToggle();
 
   // Generate 3D entities and tactical overlays for demonstration
   const mapBounds = {
@@ -80,6 +85,16 @@ export default function GamePage() {
   const boundaries = generateSampleBoundaries(mapBounds);
   const aois = generateSampleAOIs(mapBounds);
   const sensorCones = generateSampleSensorCones(mapBounds, infrastructure); // Toggle between 2D canvas and 3D map
+
+  // Throttled event handlers for performance
+  const throttledCellHover = useThrottledCallback((x: number, y: number) => {
+    setSelectedCell({ x, y });
+  }, 16); // 60fps throttling
+
+  const throttledCellClick = useThrottledCallback((x: number, y: number, sensor: SensorType) => {
+    setSelectedCell({ x, y });
+    handleRecon(x, y, sensor);
+  }, 50); // Slightly slower for click to avoid double-triggers
 
   // Handle recon action
   const handleRecon = async (x: number, y: number, sensor: SensorType) => {
@@ -179,7 +194,7 @@ export default function GamePage() {
     { key: 'p', label: 'Posterior Layer', description: 'Show Posterior heatmap', action: () => setActiveLayer('posterior'), category: 'Layers' },
     { key: 's', label: 'Strike', description: 'Strike selected cell', action: () => selectedCell && handleStrike(selectedCell.x, selectedCell.y), category: 'Actions', disabled: !selectedCell },
     { key: 't', label: 'Toggle Timeline', description: 'Toggle timeline panel', action: () => setTimelineCollapsed(!timelineCollapsed), category: 'UI' },
-    { key: 'd', label: 'Debug Panel', description: 'Toggle debug panel', action: () => setShowDebugPanel(!showDebugPanel), category: 'Debug' },
+    { key: 'd', label: 'Debug Panel', description: 'Toggle performance debug panel', action: toggleDebug, category: 'Debug' },
     { key: 'Escape', label: 'Clear Selection', description: 'Clear selection', action: () => setSelectedCell(null), category: 'Actions' }
   ];
 
@@ -233,13 +248,8 @@ export default function GamePage() {
                     config={config}
                     viewMode={activeLayer}
                     showLabels={showLabels}
-                    onCellClick={(x, y) => {
-                      setSelectedCell({ x, y });
-                      handleRecon(x, y, selectedSensor);
-                    }}
-                    onCellHover={(x, y) => {
-                      setSelectedCell({ x, y });
-                    }}
+                    onCellClick={(x, y) => throttledCellClick(x, y, selectedSensor)}
+                    onCellHover={throttledCellHover}
                     bounds={mapBounds}
                     infrastructure={infrastructure}
                     aircraft={aircraft}
@@ -252,10 +262,7 @@ export default function GamePage() {
                 <GameCanvas 
                   selectedSensor={selectedSensor}
                   onSensorChange={setSelectedSensor}
-                  onCellClick={(x, y) => {
-                    setSelectedCell({ x, y });
-                    handleRecon(x, y, selectedSensor);
-                  }}
+                  onCellClick={(x, y) => throttledCellClick(x, y, selectedSensor)}
                   onCellRightClick={(x, y) => {
                     setSelectedCell({ x, y });
                     handleStrike(x, y);
@@ -377,11 +384,8 @@ export default function GamePage() {
       {/* Loading Overlay for Web Worker Operations */}
       <LoadingOverlay loadingState={workerLoadingState} />
 
-      {/* Debug Panel */}
-      <DebugPanel
-        isOpen={showDebugPanel}
-        onClose={() => setShowDebugPanel(false)}
-      />
+      {/* Performance Debug Panel */}
+      <DebugPanel isVisible={debugVisible} onToggle={toggleDebug} />
 
       {/* Ethics footer */}
       <div className="fixed bottom-2 left-2 text-xs text-muted/60 font-mono">

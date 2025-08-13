@@ -1,154 +1,289 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
-interface PerfStats {
+export interface PerfStats {
   fps: number;
   frameTime: number;
-  avgFrameTime: number;
-  maxFrameTime: number;
-  frameCount: number;
-  memoryUsage?: number;
-  isDroppedFrames: boolean;
+  frameTimeP95: number;
+  heapUsed: number;
+  heapTotal: number;
+  renderCount: number;
+  workerTime: number;
+  isRecording: boolean;
 }
 
-interface PerfBudgets {
-  targetFPS: number;
-  maxFrameTime: number;
-  maxMemoryMB: number;
+export interface PerfSample {
+  timestamp: number;
+  frameTime: number;
+  heapUsed: number;
 }
 
-const DEFAULT_BUDGETS: PerfBudgets = {
-  targetFPS: 60,
-  maxFrameTime: 16.67, // 60fps = 16.67ms per frame
-  maxMemoryMB: 100
-};
+// Global RAF ticker to avoid multiple RAF loops
+class RAFTicker {
+  private static instance: RAFTicker;
+  private callbacks = new Set<(timestamp: number) => void>();
+  private rafId: number | null = null;
+  private lastTimestamp = 0;
 
-export function usePerfStats(budgets: Partial<PerfBudgets> = {}) {
+  static getInstance(): RAFTicker {
+    if (!RAFTicker.instance) {
+      RAFTicker.instance = new RAFTicker();
+    }
+    return RAFTicker.instance;
+  }
+
+  subscribe(callback: (timestamp: number) => void): () => void {
+    this.callbacks.add(callback);
+    
+    if (this.callbacks.size === 1) {
+      this.start();
+    }
+
+    return () => {
+      this.callbacks.delete(callback);
+      if (this.callbacks.size === 0) {
+        this.stop();
+      }
+    };
+  }
+
+  private start(): void {
+    const tick = (timestamp: number) => {
+      this.lastTimestamp = timestamp;
+
+      // Call all subscribers with coalesced timing
+      this.callbacks.forEach(callback => {
+        try {
+          callback(timestamp);
+        } catch (error) {
+          console.warn('RAF callback error:', error);
+        }
+      });
+
+      this.rafId = requestAnimationFrame(tick);
+    };
+
+    this.rafId = requestAnimationFrame(tick);
+  }
+
+  private stop(): void {
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+  }
+}
+
+// Performance monitoring hook
+export function usePerfStats(enabled: boolean = false): PerfStats {
   const [stats, setStats] = useState<PerfStats>({
     fps: 0,
     frameTime: 0,
-    avgFrameTime: 0,
-    maxFrameTime: 0,
-    frameCount: 0,
-    isDroppedFrames: false
+    frameTimeP95: 0,
+    heapUsed: 0,
+    heapTotal: 0,
+    renderCount: 0,
+    workerTime: 0,
+    isRecording: enabled
   });
 
-  const [isMonitoring, setIsMonitoring] = useState(false);
-  const animationFrameRef = useRef<number | undefined>(undefined);
-  const lastFrameTimeRef = useRef<number>(0);
-  const frameTimesRef = useRef<number[]>([]);
-  const startTimeRef = useRef<number>(0);
+  const samplesRef = useRef<PerfSample[]>([]);
+  const frameCountRef = useRef(0);
+  const renderCountRef = useRef(0);
+  const workerTimeRef = useRef(0);
+  const lastFpsUpdateRef = useRef(0);
+  const lastFrameTimeRef = useRef(performance.now());
 
-  const finalBudgets = useMemo(() => ({ ...DEFAULT_BUDGETS, ...budgets }), [budgets]);
-
-  const measureFrame = useCallback((currentTime: number) => {
-    if (lastFrameTimeRef.current === 0) {
-      lastFrameTimeRef.current = currentTime;
-      startTimeRef.current = currentTime;
-      animationFrameRef.current = requestAnimationFrame(measureFrame);
-      return;
+  // Throttled heap memory sampling (expensive operation)
+  const sampleHeap = useCallback(() => {
+    if ('memory' in performance) {
+      const memory = (performance as { memory: { usedJSHeapSize: number; totalJSHeapSize: number } }).memory;
+      return {
+        used: memory.usedJSHeapSize,
+        total: memory.totalJSHeapSize
+      };
     }
-
-    const deltaTime = currentTime - lastFrameTimeRef.current;
-    lastFrameTimeRef.current = currentTime;
-
-    // Track frame times for averaging
-    frameTimesRef.current.push(deltaTime);
-    if (frameTimesRef.current.length > 60) { // Keep last 60 frames
-      frameTimesRef.current.shift();
-    }
-
-    const frameCount = frameTimesRef.current.length;
-    const avgFrameTime = frameTimesRef.current.reduce((a, b) => a + b, 0) / frameCount;
-    const maxFrameTime = Math.max(...frameTimesRef.current);
-    const fps = 1000 / avgFrameTime;
-
-    // Check for dropped frames (frame time > budget)
-    const isDroppedFrames = deltaTime > finalBudgets.maxFrameTime * 1.5;
-
-    // Get memory usage if available
-    let memoryUsage: number | undefined;
-    const perfWithMemory = performance as Performance & { memory?: { usedJSHeapSize: number } };
-    if (perfWithMemory.memory) {
-      memoryUsage = perfWithMemory.memory.usedJSHeapSize / (1024 * 1024);
-    }
-
-    setStats({
-      fps: Math.round(fps * 10) / 10,
-      frameTime: Math.round(deltaTime * 100) / 100,
-      avgFrameTime: Math.round(avgFrameTime * 100) / 100,
-      maxFrameTime: Math.round(maxFrameTime * 100) / 100,
-      frameCount,
-      memoryUsage: memoryUsage ? Math.round(memoryUsage * 10) / 10 : undefined,
-      isDroppedFrames
-    });
-
-    if (isMonitoring) {
-      animationFrameRef.current = requestAnimationFrame(measureFrame);
-    }
-  }, [isMonitoring, finalBudgets.maxFrameTime]);
-
-  const startMonitoring = useCallback(() => {
-    if (!isMonitoring) {
-      setIsMonitoring(true);
-      frameTimesRef.current = [];
-      lastFrameTimeRef.current = 0;
-      animationFrameRef.current = requestAnimationFrame(measureFrame);
-    }
-  }, [isMonitoring, measureFrame]);
-
-  const stopMonitoring = useCallback(() => {
-    setIsMonitoring(false);
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
+    return { used: 0, total: 0 };
   }, []);
 
-  const resetStats = useCallback(() => {
-    frameTimesRef.current = [];
-    lastFrameTimeRef.current = 0;
-    startTimeRef.current = 0;
-    setStats({
-      fps: 0,
-      frameTime: 0,
-      avgFrameTime: 0,
-      maxFrameTime: 0,
-      frameCount: 0,
-      isDroppedFrames: false
-    });
+  // Calculate P95 frame time from samples
+  const calculateP95 = useCallback((samples: PerfSample[]): number => {
+    if (samples.length === 0) return 0;
+    
+    const frameTimes = samples.map(s => s.frameTime).sort((a, b) => a - b);
+    const p95Index = Math.floor(frameTimes.length * 0.95);
+    return frameTimes[p95Index] || 0;
   }, []);
 
-  // Auto-start monitoring
+  // RAF callback for performance monitoring
+  const onFrame = useCallback((timestamp: number) => {
+    if (!enabled) return;
+
+    const now = performance.now();
+    const frameTime = now - lastFrameTimeRef.current;
+    lastFrameTimeRef.current = now;
+
+    frameCountRef.current++;
+
+    // Sample collection (limit to 1000 samples for P95 calculation)
+    const sample: PerfSample = {
+      timestamp,
+      frameTime,
+      heapUsed: 0 // Will be filled by throttled heap sampling
+    };
+
+    samplesRef.current.push(sample);
+    if (samplesRef.current.length > 1000) {
+      samplesRef.current.shift();
+    }
+
+    // Update stats every second
+    if (timestamp - lastFpsUpdateRef.current >= 1000) {
+      const fps = Math.round((frameCountRef.current * 1000) / (timestamp - lastFpsUpdateRef.current));
+      const heap = sampleHeap();
+      const frameTimeP95 = calculateP95(samplesRef.current);
+
+      // Sample heap for recent samples
+      const recentSamples = samplesRef.current.slice(-10);
+      recentSamples.forEach(sample => {
+        if (sample.heapUsed === 0) {
+          sample.heapUsed = heap.used;
+        }
+      });
+
+      setStats(prevStats => ({
+        ...prevStats,
+        fps,
+        frameTime: frameTime,
+        frameTimeP95,
+        heapUsed: heap.used,
+        heapTotal: heap.total,
+        renderCount: renderCountRef.current,
+        workerTime: workerTimeRef.current,
+        isRecording: enabled
+      }));
+
+      frameCountRef.current = 0;
+      lastFpsUpdateRef.current = timestamp;
+    }
+  }, [enabled, sampleHeap, calculateP95]);
+
+  // Subscribe to RAF ticker
   useEffect(() => {
-    startMonitoring();
-    return () => stopMonitoring();
-  }, [startMonitoring, stopMonitoring]);
+    if (!enabled) return;
 
-  // Performance assessments
-  const getPerformanceGrade = useCallback(() => {
-    if (stats.fps >= finalBudgets.targetFPS * 0.95) return 'excellent';
-    if (stats.fps >= finalBudgets.targetFPS * 0.85) return 'good';
-    if (stats.fps >= finalBudgets.targetFPS * 0.7) return 'fair';
-    return 'poor';
-  }, [stats.fps, finalBudgets.targetFPS]);
+    const ticker = RAFTicker.getInstance();
+    const unsubscribe = ticker.subscribe(onFrame);
 
-  const isWithinBudget = useCallback(() => {
-    return (
-      stats.fps >= finalBudgets.targetFPS * 0.9 &&
-      stats.avgFrameTime <= finalBudgets.maxFrameTime * 1.1 &&
-      (stats.memoryUsage === undefined || stats.memoryUsage <= finalBudgets.maxMemoryMB)
-    );
-  }, [stats, finalBudgets]);
+    return unsubscribe;
+  }, [enabled, onFrame]);
+
+  // Reset samples when enabled state changes
+  useEffect(() => {
+    if (!enabled) {
+      samplesRef.current = [];
+      frameCountRef.current = 0;
+      renderCountRef.current = 0;
+      workerTimeRef.current = 0;
+      lastFpsUpdateRef.current = 0;
+    }
+  }, [enabled]);
+
+  // Public API for updating stats from external sources
+  const updateRenderCount = useCallback(() => {
+    renderCountRef.current++;
+  }, []);
+
+  const updateWorkerTime = useCallback((time: number) => {
+    workerTimeRef.current = time;
+  }, []);
 
   return {
-    stats,
-    budgets: finalBudgets,
-    isMonitoring,
-    startMonitoring,
-    stopMonitoring,
-    resetStats,
-    getPerformanceGrade,
-    isWithinBudget
+    ...stats,
+    // Expose update methods for external components
+    updateRenderCount,
+    updateWorkerTime
+  } as PerfStats & {
+    updateRenderCount: () => void;
+    updateWorkerTime: (time: number) => void;
+  };
+}
+
+// Throttled event coalescing utility
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function useThrottledCallback<T extends (...args: any[]) => void>(
+  callback: T,
+  delay: number = 16 // 16ms = 60fps
+): T {
+  const lastCallRef = useRef(0);
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+
+  return useCallback((...args: Parameters<T>) => {
+    const now = Date.now();
+    const timeSinceLastCall = now - lastCallRef.current;
+
+    if (timeSinceLastCall >= delay) {
+      // Call immediately if enough time has passed
+      lastCallRef.current = now;
+      callback(...args);
+    } else {
+      // Schedule call for later
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      timeoutRef.current = setTimeout(() => {
+        lastCallRef.current = Date.now();
+        callback(...args);
+      }, delay - timeSinceLastCall);
+    }
+  }, [callback, delay]) as T;
+}
+
+// Performance context for debugging
+export interface PerfContext {
+  markStart: (label: string) => void;
+  markEnd: (label: string) => number;
+  getMarks: () => Record<string, number>;
+  clearMarks: () => void;
+}
+
+export function usePerfContext(): PerfContext {
+  const marksRef = useRef<Record<string, number>>({});
+  const timingsRef = useRef<Record<string, number>>({});
+
+  const markStart = useCallback((label: string) => {
+    marksRef.current[label] = performance.now();
+  }, []);
+
+  const markEnd = useCallback((label: string): number => {
+    const startTime = marksRef.current[label];
+    if (startTime === undefined) {
+      console.warn(`No start mark found for: ${label}`);
+      return 0;
+    }
+
+    const duration = performance.now() - startTime;
+    timingsRef.current[label] = duration;
+    delete marksRef.current[label];
+    
+    return duration;
+  }, []);
+
+  const getMarks = useCallback(() => {
+    return { ...timingsRef.current };
+  }, []);
+
+  const clearMarks = useCallback(() => {
+    marksRef.current = {};
+    timingsRef.current = {};
+  }, []);
+
+  return {
+    markStart,
+    markEnd,
+    getMarks,
+    clearMarks
   };
 }
