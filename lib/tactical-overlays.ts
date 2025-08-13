@@ -234,13 +234,16 @@ export function generateTooltipData(object: unknown): string {
   // Aircraft tooltip
   if (obj.id && typeof obj.heading === 'number') {
     const heading = ((obj.heading * 180 / Math.PI) + 360) % 360;
+    const speedKnots = Number(obj.speed) * 1.94384; // m/s to knots
     return `
-AIRCRAFT: ${String(obj.id).toUpperCase()}
-TYPE: ${String(obj.type).toUpperCase()}
-ALT: ${obj.altitude}m
-HDG: ${heading.toFixed(0)}°
-SPD: ${obj.speed}m/s
-STATUS: ${obj.isHostile ? 'HOSTILE' : 'FRIENDLY'}
+┌─ AIRCRAFT ─────────────────┐
+│ ID: ${String(obj.id).toUpperCase().padEnd(18)} │
+│ TYPE: ${String(obj.type).toUpperCase().padEnd(16)} │
+│ ALT: ${String(obj.altitude).padEnd(8)}m AGL      │
+│ HDG: ${heading.toFixed(0).padStart(3)}°              │
+│ SPD: ${Number(obj.speed).toFixed(0).padStart(3)}m/s (${speedKnots.toFixed(0)}kts) │
+│ STATUS: ${obj.isHostile ? 'HOSTILE' : 'FRIENDLY'.padEnd(8)} │
+└────────────────────────────┘
     `.trim();
   }
   
@@ -248,12 +251,15 @@ STATUS: ${obj.isHostile ? 'HOSTILE' : 'FRIENDLY'}
   if (obj.type && ['tower', 'dome', 'building'].includes(String(obj.type))) {
     const position = obj.position as [number, number, number];
     return `
-INFRASTRUCTURE: ${String(obj.id).toUpperCase()}
-TYPE: ${String(obj.type).toUpperCase()}
-POS: ${position[1].toFixed(5)}°N ${position[0].toFixed(5)}°E
-ALT: ${position[2]}m
-SCALE: ${(Number(obj.scale) * 100).toFixed(0)}%
-STATUS: ${obj.isDestroyed ? 'DESTROYED' : 'OPERATIONAL'}
+┌─ INFRASTRUCTURE ───────────┐
+│ ID: ${String(obj.id).toUpperCase().padEnd(18)} │
+│ TYPE: ${String(obj.type).toUpperCase().padEnd(16)} │
+│ LAT: ${position[1].toFixed(5).padStart(9)}°N    │
+│ LNG: ${position[0].toFixed(5).padStart(9)}°E    │
+│ ALT: ${String(position[2]).padEnd(6)}m MSL      │
+│ SCALE: ${(Number(obj.scale) * 100).toFixed(0).padStart(3)}%             │
+│ STATUS: ${obj.isDestroyed ? 'DESTROYED' : 'OPERATIONAL'.padEnd(11)} │
+└────────────────────────────┘
     `.trim();
   }
   
@@ -261,13 +267,17 @@ STATUS: ${obj.isDestroyed ? 'DESTROYED' : 'OPERATIONAL'}
   if (obj.sensorType) {
     const bearing = ((Number(obj.bearing) * 180 / Math.PI) + 360) % 360;
     const fov = Number(obj.fieldOfView) * 180 / Math.PI;
+    const rangeKm = Number(obj.range) / 1000;
     return `
-SENSOR: ${String(obj.id).toUpperCase()}
-TYPE: ${obj.sensorType}
-BEARING: ${bearing.toFixed(0)}°
-FOV: ${fov.toFixed(0)}°
-RANGE: ${obj.range}m
-CONFIDENCE: ${(Number(obj.confidence) * 100).toFixed(0)}%
+┌─ SENSOR ───────────────────┐
+│ ID: ${String(obj.id).toUpperCase().padEnd(18)} │
+│ TYPE: ${String(obj.sensorType).padEnd(16)} │
+│ BEARING: ${bearing.toFixed(0).padStart(3)}°           │
+│ FOV: ${fov.toFixed(0).padStart(3)}°               │
+│ RANGE: ${Number(obj.range).toFixed(0).padStart(4)}m (${rangeKm.toFixed(1)}km) │
+│ CONFIDENCE: ${(Number(obj.confidence) * 100).toFixed(0).padStart(3)}%        │
+│ HEIGHT: ${String(obj.sectorHeight).padStart(3)}m          │
+└────────────────────────────┘
     `.trim();
   }
   
@@ -275,20 +285,27 @@ CONFIDENCE: ${(Number(obj.confidence) * 100).toFixed(0)}%
   if (obj.name && obj.type) {
     const path = obj.path as unknown[];
     return `
-BOUNDARY: ${obj.name}
-TYPE: ${obj.type}
-LENGTH: ${path ? path.length : 0} waypoints
-ANIMATED: ${obj.animated ? 'YES' : 'NO'}
+┌─ BOUNDARY ─────────────────┐
+│ NAME: ${String(obj.name).padEnd(16)} │
+│ TYPE: ${String(obj.type).padEnd(16)} │
+│ WAYPOINTS: ${String(path ? path.length : 0).padStart(2)}         │
+│ ANIMATED: ${obj.animated ? 'YES' : 'NO'.padEnd(3)}            │
+│ DASH: ${String(obj.dashLength || 0).padStart(3)}m intervals    │
+└────────────────────────────┘
     `.trim();
   }
   
   // AOI tooltip
   if (obj.polygon && obj.priority) {
+    const polygon = obj.polygon as unknown[];
     return `
-AOI: ${obj.name}
-TYPE: ${obj.type}
-PRIORITY: ${obj.priority}
-DESC: ${obj.description || 'N/A'}
+┌─ AREA OF INTEREST ─────────┐
+│ NAME: ${String(obj.name).padEnd(16)} │
+│ TYPE: ${String(obj.type).padEnd(16)} │
+│ PRIORITY: ${String(obj.priority).padEnd(12)} │
+│ VERTICES: ${String(polygon ? polygon.length : 0).padStart(2)}         │
+│ DESC: ${String(obj.description || 'N/A').slice(0, 16).padEnd(16)} │
+└────────────────────────────┘
     `.trim();
   }
   

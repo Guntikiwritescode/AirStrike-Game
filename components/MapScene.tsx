@@ -7,7 +7,7 @@ import { TerrainLayer } from '@deck.gl/geo-layers';
 import { ScatterplotLayer, PathLayer, PolygonLayer } from '@deck.gl/layers';
 import { Map as ReactMapGL } from 'react-map-gl/maplibre';
 import { HeatmapType, InfrastructureEntity, AircraftEntity, FlightPath, TacticalBoundary, AreaOfInterest, SensorCone } from '@/lib/types';
-import { generateTooltipData } from '@/lib/tactical-overlays';
+import TacticalTooltip from '@/components/TacticalTooltip';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 // Types for our game integration
@@ -93,8 +93,9 @@ export default function MapScene({
   const [devicePixelRatio, setDevicePixelRatio] = useState(1);
   const [mousePosition, setMousePosition] = useState<{ lat: number; lng: number } | null>(null);
   const [animationTime, setAnimationTime] = useState(0);
-  const [hoveredObject, setHoveredObject] = useState<unknown>(null);
-  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
+  // Tooltip state temporarily disabled
+  // const [hoveredObject, setHoveredObject] = useState<unknown>(null);
+  // const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
 
   // Map view state with proper scale constraints
   const [viewState, setViewState] = useState({
@@ -603,14 +604,14 @@ export default function MapScene({
             });
           }
           
-          // Handle tooltip for hovered objects
-          if (info.object && info.x && info.y) {
-            setHoveredObject(info.object);
-            setTooltipPosition({ x: info.x, y: info.y });
-          } else {
-            setHoveredObject(null);
-            setTooltipPosition(null);
-          }
+          // Tooltip functionality temporarily disabled
+          // if (info.object && info.x !== undefined && info.y !== undefined) {
+          //   setHoveredObject(info.object);
+          //   setTooltipPosition({ x: info.x, y: info.y });
+          // } else {
+          //   setHoveredObject(null);
+          //   setTooltipPosition(null);
+          // }
         }}
         layers={layers}
         width={containerSize.width}
@@ -670,7 +671,8 @@ export default function MapScene({
         </div>
       </div>
 
-
+      {/* Tactical Tooltip - Temporarily disabled */}
+      {/* Will be implemented in separate commit */}
 
       {/* Performance indicator */}
       {process.env.NODE_ENV === 'development' && (
