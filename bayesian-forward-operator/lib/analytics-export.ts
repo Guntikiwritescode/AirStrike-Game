@@ -43,6 +43,32 @@ export function calculateTurnMetrics(
   
   // Calculate infrastructure risk
   let totalInfraRisk = 0;
+  if (grid.length === 0 || grid[0].length === 0) {
+    return {
+      turn,
+      timestamp,
+      score: currentScore,
+      remainingBudget,
+      brierScore: analytics.brierScore,
+      logLoss: analytics.logLoss,
+      hostilesNeutralized: analytics.hostilesNeutralized,
+      infraHits: analytics.infraHits,
+      totalCost: analytics.totalCost,
+      bestEVAvailable: 0,
+      chosenEV: 0,
+      evGap: 0,
+      infraRisk: 0,
+      uncertaintyLevel: 0,
+      actionsThisTurn: {
+        recons: 0,
+        strikes: 0,
+        totalCost: 0
+      },
+      beliefAccuracy: 0,
+      spatialConcentration: 0
+    };
+  }
+  
   for (let y = 0; y < grid.length; y++) {
     for (let x = 0; x < grid[y].length; x++) {
       totalInfraRisk += grid[y][x].infraPriorProbability;

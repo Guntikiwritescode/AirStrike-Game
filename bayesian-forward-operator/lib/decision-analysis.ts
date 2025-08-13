@@ -57,6 +57,16 @@ export function calculateStrikeEV(
   radius: number,
   config: GameConfig
 ): StrikeOutcome {
+  if (grid.length === 0 || grid[0].length === 0) {
+    return {
+      expectedValue: 0,
+      costOfStrike: config.costStrike,
+      collateralRisk: 0,
+      affectedCells: [],
+      violatesConstraint: false
+    };
+  }
+  
   const gridHeight = grid.length;
   const gridWidth = grid[0].length;
   
