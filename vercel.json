@@ -1,11 +1,7 @@
 {
+  "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "framework": "nextjs",
-  "regions": ["iad1"],
-  "functions": {
-    "app/**/*.{js,ts,tsx}": {
-      "runtime": "nodejs18.x"
-    }
-  }
+  "regions": ["iad1"]
 }
