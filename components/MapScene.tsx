@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import DeckGL from '@deck.gl/react';
 import { MapView } from '@deck.gl/core';
 import { TerrainLayer } from '@deck.gl/geo-layers';
@@ -70,16 +70,48 @@ export default function MapScene({
   onCellHover,
   bounds = DEFAULT_BOUNDS
 }: MapSceneProps) {
-  // Map view state
+  // Refs for ResizeObserver and DPR handling
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
+  const [devicePixelRatio, setDevicePixelRatio] = useState(1);
+  const [mousePosition, setMousePosition] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Map view state with proper scale constraints
   const [viewState, setViewState] = useState({
     longitude: (bounds.east + bounds.west) / 2,
     latitude: (bounds.north + bounds.south) / 2,
-    zoom: 14,
-    pitch: 45,    // 3D tilt
-    bearing: 0,   // Rotation
-    minZoom: 12,
-    maxZoom: 18
+    zoom: 15.5,     // Optimal zoom for tactical grid visibility
+    pitch: 60,      // Better 3D perspective for terrain
+    bearing: -45,   // Slightly angled for visual interest
+    minZoom: 13,    // Prevent excessive zoom out
+    maxZoom: 18     // Prevent excessive zoom in
   });
+
+  // ResizeObserver for responsive sizing without layout shift
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        setContainerSize({ width, height });
+      }
+    });
+
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  // DPR detection for crisp rendering
+  useEffect(() => {
+    const updateDPR = () => {
+      setDevicePixelRatio(window.devicePixelRatio || 1);
+    };
+
+    updateDPR();
+    window.addEventListener('resize', updateDPR);
+    return () => window.removeEventListener('resize', updateDPR);
+  }, []);
 
 
 
@@ -93,6 +125,42 @@ export default function MapScene({
       latitude: bounds.south + (gridY + 0.5) * latStep
     };
   }, [bounds, config.gridSize]);
+
+  // Zoom-aware radius calculation for consistent visual size
+  const getRadiusForZoom = useCallback((zoom: number) => {
+    // Base radius at zoom 15.5, scales with zoom level
+    const baseRadius = 150; // meters
+    const zoomFactor = Math.pow(2, 15.5 - zoom);
+    return Math.max(50, Math.min(400, baseRadius * zoomFactor));
+  }, []);
+
+  // Calculate scale bar length based on zoom level
+  const getScaleBarData = useCallback(() => {
+    const zoom = viewState.zoom;
+    // Approximate meters per pixel at this zoom level and latitude
+    const metersPerPixel = (156543.03392 * Math.cos(viewState.latitude * Math.PI / 180)) / Math.pow(2, zoom);
+    
+    // Target scale bar length: 100px
+    const targetPixels = 100;
+    const targetMeters = metersPerPixel * targetPixels;
+    
+    // Round to nice numbers
+    let scaleMeters: number;
+    if (targetMeters < 100) {
+      scaleMeters = Math.round(targetMeters / 10) * 10;
+    } else if (targetMeters < 1000) {
+      scaleMeters = Math.round(targetMeters / 50) * 50;
+    } else {
+      scaleMeters = Math.round(targetMeters / 500) * 500;
+    }
+    
+    const scalePixels = (scaleMeters / metersPerPixel);
+    const scaleText = scaleMeters >= 1000 ? `${(scaleMeters / 1000).toFixed(1)} km` : `${scaleMeters} m`;
+    
+    return { scalePixels, scaleText, scaleMeters };
+  }, [viewState.zoom, viewState.latitude]);
+
+  const scaleBarData = getScaleBarData();
 
 
 
@@ -168,14 +236,14 @@ export default function MapScene({
           gridY: y,
           value,
           color,
-          radius: 200, // Meters
+          radius: getRadiusForZoom(viewState.zoom), // Zoom-aware radius in meters
           cell
         });
       });
     });
     
     return cellData;
-  }, [grid, viewMode, config.showTruthOverlay, getGridPosition]);
+  }, [grid, viewMode, config.showTruthOverlay, getGridPosition, getRadiusForZoom, viewState.zoom]);
 
   // Deck.gl layers
   const layers = useMemo(() => [
@@ -200,24 +268,29 @@ export default function MapScene({
       wireframe: false
     }),
     
-    // Game grid overlay
+    // Game grid overlay with DPR-aware sizing
     new ScatterplotLayer({
       id: 'game-grid',
       data: layerData,
       pickable: true,
-      opacity: 0.7,
+      opacity: 0.8,
       stroked: true,
       filled: true,
       radiusScale: 1,
-      radiusMinPixels: 8,
-      radiusMaxPixels: 50,
-      lineWidthMinPixels: 1,
+      radiusUnits: 'meters',
+      radiusMinPixels: Math.ceil(6 * devicePixelRatio),  // DPR-aware minimum
+      radiusMaxPixels: Math.ceil(80 * devicePixelRatio), // DPR-aware maximum
+      lineWidthScale: 1,
+      lineWidthUnits: 'meters',
+      lineWidthMinPixels: Math.ceil(1 * devicePixelRatio), // Crisp 1px lines
       getPosition: (d: CellData) => d.position,
       getRadius: (d: CellData) => d.radius,
       getFillColor: (d: CellData) => d.color,
-      getLineColor: [255, 255, 255, 100], // White outline
+      getLineColor: [255, 255, 255, 120], // Slightly more visible outline
+      getLineWidth: 5, // 5 meters for consistent outline width
       updateTriggers: {
-        getFillColor: [viewMode, config.showTruthOverlay]
+        getFillColor: [viewMode, config.showTruthOverlay],
+        getRadius: [viewState.zoom]
       },
       
       // Interaction handlers
@@ -233,7 +306,7 @@ export default function MapScene({
         }
       }
     })
-  ], [layerData, viewMode, config.showTruthOverlay, showLabels, onCellClick, onCellHover]);
+  ], [layerData, viewMode, config.showTruthOverlay, showLabels, onCellClick, onCellHover, devicePixelRatio, viewState.zoom]);
 
   // View configuration
   const views = useMemo(() => [
@@ -253,7 +326,11 @@ export default function MapScene({
   ], []);
 
   return (
-    <div className="relative w-full h-full">
+    <div 
+      ref={containerRef}
+      className="relative w-full h-full"
+      style={{ width: '100%', height: '100%', overflow: 'hidden' }}
+    >
       <DeckGL
         views={views}
         viewState={{ map: viewState }}
@@ -262,9 +339,21 @@ export default function MapScene({
             setViewState(newViewState.map as typeof viewState);
           }
         }}
+        onHover={(info) => {
+          if (info.coordinate) {
+            setMousePosition({ 
+              lat: info.coordinate[1], 
+              lng: info.coordinate[0] 
+            });
+          }
+        }}
         layers={layers}
-
-
+        width={containerSize.width}
+        height={containerSize.height}
+        style={{ 
+          width: `${containerSize.width}px`, 
+          height: `${containerSize.height}px` 
+        }}
       >
         <ReactMapGL
           {...viewState}
@@ -278,10 +367,48 @@ export default function MapScene({
         />
       </DeckGL>
       
+      {/* Scale bar */}
+      <div className="absolute bottom-4 left-4 bg-panel2/90 text-ink px-3 py-2 rounded border border-grid/40">
+        <div className="flex items-end gap-3">
+          <div className="relative">
+            <div 
+              className="border-b-2 border-l-2 border-r-2 border-accent"
+              style={{ 
+                width: `${scaleBarData.scalePixels}px`, 
+                height: '8px',
+                imageRendering: 'pixelated' // Crisp rendering
+              }}
+            />
+            <div className="text-xs font-mono mt-1 text-center">
+              {scaleBarData.scaleText}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Coordinate readout */}
+      <div className="absolute bottom-4 right-4 bg-panel2/90 text-ink px-3 py-2 rounded border border-grid/40">
+        <div className="text-xs font-mono space-y-1">
+          <div className="text-muted mb-1">Center:</div>
+          <div>Lat: {viewState.latitude.toFixed(6)}°</div>
+          <div>Lng: {viewState.longitude.toFixed(6)}°</div>
+          {mousePosition && (
+            <>
+              <div className="text-muted mt-2 mb-1">Cursor:</div>
+              <div>Lat: {mousePosition.lat.toFixed(6)}°</div>
+              <div>Lng: {mousePosition.lng.toFixed(6)}°</div>
+            </>
+          )}
+          <div className="text-muted mt-2 mb-1">View:</div>
+          <div>Zoom: {viewState.zoom.toFixed(1)}</div>
+          <div>DPR: {devicePixelRatio.toFixed(1)}x</div>
+        </div>
+      </div>
+        
       {/* Performance indicator */}
       {process.env.NODE_ENV === 'development' && (
-        <div className="absolute top-2 right-2 text-xs font-mono bg-panel2/80 text-ink px-2 py-1 rounded">
-          3D Terrain Active
+        <div className="absolute top-2 right-2 text-xs font-mono bg-panel2/80 text-ink px-2 py-1 rounded border border-grid/40">
+          3D Map • {containerSize.width}×{containerSize.height}
         </div>
       )}
     </div>
