@@ -17,6 +17,9 @@ export default function GameCanvas() {
     performRecon,
     performStrike,
     toggleTruthOverlay,
+    getEVHeatmap,
+    getVOIHeatmap,
+    validateStrikeAction,
   } = useGameStore();
 
   const CELL_SIZE = 30;
@@ -54,9 +57,20 @@ export default function GameCanvas() {
     
     const pos = getCellPosition(event.clientX, event.clientY);
     if (pos) {
-      performStrike(pos.x, pos.y, 1); // radius 1 for now
+      const validation = validateStrikeAction(pos.x, pos.y, 1);
+      
+      if (validation.requiresConfirmation) {
+        const confirmed = window.confirm(`Strike Warning: ${validation.reason}\n\nProceed anyway?`);
+        if (confirmed) {
+          performStrike(pos.x, pos.y, 1, true); // Force execute
+        }
+      } else if (validation.allowed) {
+        performStrike(pos.x, pos.y, 1, false);
+      } else {
+        alert(`Strike Blocked: ${validation.reason}`);
+      }
     }
-  }, [gameStarted, getCellPosition, performStrike]);
+  }, [gameStarted, getCellPosition, performStrike, validateStrikeAction]);
 
   const handleCanvasMouseMove = useCallback((event: React.MouseEvent) => {
     const pos = getCellPosition(event.clientX, event.clientY);
@@ -106,6 +120,7 @@ export default function GameCanvas() {
         let intensity: number;
         let showText = false;
         let textValue = '';
+        let useSpecialColorScheme = false;
         
         switch (viewMode) {
           case 'posterior':
@@ -132,15 +147,70 @@ export default function GameCanvas() {
             textValue = (intensity * 100).toFixed(0) + '%';
             break;
             
+          case 'expectedValue':
+            // Get EV heatmap and normalize
+            const evHeatmap = getEVHeatmap(1);
+            const evValue = evHeatmap[y][x];
+            const maxEV = Math.max(...evHeatmap.flat());
+            const minEV = Math.min(...evHeatmap.flat());
+            
+            if (maxEV > minEV) {
+              intensity = Math.max(0, (evValue - minEV) / (maxEV - minEV));
+            } else {
+              intensity = 0;
+            }
+            
+            showText = evValue > 0;
+            textValue = evValue > 0 ? `+${evValue.toFixed(0)}` : evValue < -10 ? evValue.toFixed(0) : '';
+            useSpecialColorScheme = true;
+            break;
+            
+          case 'valueOfInformation':
+            // Get VOI heatmap and normalize
+            const voiHeatmap = getVOIHeatmap(selectedSensor, 1);
+            const voiValue = voiHeatmap[y][x];
+            const maxVOI = Math.max(...voiHeatmap.flat());
+            
+            if (maxVOI > 0) {
+              intensity = voiValue / maxVOI;
+            } else {
+              intensity = 0;
+            }
+            
+            showText = voiValue > 0;
+            textValue = voiValue > 0 ? `+${voiValue.toFixed(0)}` : '';
+            useSpecialColorScheme = true;
+            break;
+            
           default:
             intensity = cell.posteriorProbability;
             break;
         }
 
-        // Background color based on intensity
-        const red = Math.floor(255 * intensity);
-        const green = Math.floor(255 * (1 - intensity));
-        const blue = viewMode === 'truth' && config.showTruthOverlay ? 200 : 100;
+        // Background color based on intensity and view mode
+        let red: number, green: number, blue: number;
+        
+        if (useSpecialColorScheme) {
+          if (viewMode === 'expectedValue') {
+            // EV: Green for positive, red for negative, intensity determines brightness
+            green = Math.floor(255 * intensity);
+            red = Math.floor(128 * (1 - intensity));
+            blue = 50;
+          } else if (viewMode === 'valueOfInformation') {
+            // VOI: Purple/blue gradient for information value
+            red = Math.floor(128 + 127 * intensity);
+            green = Math.floor(64 + 64 * intensity);
+            blue = Math.floor(200 + 55 * intensity);
+          } else {
+            red = Math.floor(255 * intensity);
+            green = Math.floor(255 * (1 - intensity));
+            blue = 100;
+          }
+        } else {
+          red = Math.floor(255 * intensity);
+          green = Math.floor(255 * (1 - intensity));
+          blue = viewMode === 'truth' && config.showTruthOverlay ? 200 : 100;
+        }
         
         ctx.fillStyle = `rgba(${red}, ${green}, ${blue}, 0.6)`;
         ctx.fillRect(cellX + 1, cellY + 1, CELL_SIZE - 2, CELL_SIZE - 2);
@@ -177,7 +247,7 @@ export default function GameCanvas() {
         }
       });
     });
-  }, [grid, config.gridSize, config.showTruthOverlay, hoveredCell, viewMode]);
+  }, [grid, config.gridSize, config.showTruthOverlay, hoveredCell, viewMode, selectedSensor, getEVHeatmap, getVOIHeatmap]);
 
   useEffect(() => {
     drawGrid();
@@ -204,9 +274,9 @@ export default function GameCanvas() {
       </div>
 
       {/* View Mode Selection */}
-      <div className="flex space-x-2 items-center">
+      <div className="flex flex-wrap gap-2 items-center">
         <label className="text-sm font-medium">View:</label>
-        {(['posterior', 'priorField', 'truth'] as HeatmapType[]).map((mode) => (
+        {(['posterior', 'priorField', 'expectedValue', 'valueOfInformation', 'truth'] as HeatmapType[]).map((mode) => (
           <button
             key={mode}
             onClick={() => setViewMode(mode)}
@@ -217,7 +287,9 @@ export default function GameCanvas() {
             }`}
           >
             {mode === 'posterior' ? 'Beliefs' : 
-             mode === 'priorField' ? 'Priors' : 'Truth'}
+             mode === 'priorField' ? 'Priors' : 
+             mode === 'expectedValue' ? 'EV' :
+             mode === 'valueOfInformation' ? 'VOI' : 'Truth'}
           </button>
         ))}
         
@@ -238,29 +310,57 @@ export default function GameCanvas() {
 
       {/* Legend */}
       <div className="flex flex-wrap gap-4 text-xs text-slate-400">
-        <div className="flex items-center space-x-1">
-          <div className="w-3 h-3 bg-red-500 opacity-60"></div>
-          <span>
-            {viewMode === 'truth' && config.showTruthOverlay ? 'Has Hostile' :
-             viewMode === 'priorField' ? 'High Prior θ(x,y)' : 'High Probability'}
-          </span>
-        </div>
-        <div className="flex items-center space-x-1">
-          <div className="w-3 h-3 bg-green-500 opacity-60"></div>
-          <span>
-            {viewMode === 'truth' && config.showTruthOverlay ? 'No Hostile' :
-             viewMode === 'priorField' ? 'Low Prior θ(x,y)' : 'Low Probability'}
-          </span>
-        </div>
-        <div className="flex items-center space-x-1">
-          <div className="w-3 h-3 bg-blue-500"></div>
-          <span>Infrastructure</span>
-        </div>
-        {viewMode !== 'truth' && (
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 bg-amber-400"></div>
-            <span>Reconned</span>
-          </div>
+        {viewMode === 'expectedValue' ? (
+          <>
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-green-500"></div>
+              <span>High Expected Value</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-red-400"></div>
+              <span>Low/Negative EV</span>
+            </div>
+            <div className="text-xs">Right-click to strike (with confirmation)</div>
+          </>
+        ) : viewMode === 'valueOfInformation' ? (
+          <>
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-purple-400"></div>
+              <span>High Information Value</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-slate-600"></div>
+              <span>Low/No Information Value</span>
+            </div>
+            <div className="text-xs">Left-click to recon high-VOI areas</div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-red-500 opacity-60"></div>
+              <span>
+                {viewMode === 'truth' && config.showTruthOverlay ? 'Has Hostile' :
+                 viewMode === 'priorField' ? 'High Prior θ(x,y)' : 'High Probability'}
+              </span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-green-500 opacity-60"></div>
+              <span>
+                {viewMode === 'truth' && config.showTruthOverlay ? 'No Hostile' :
+                 viewMode === 'priorField' ? 'Low Prior θ(x,y)' : 'Low Probability'}
+              </span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-blue-500"></div>
+              <span>Infrastructure</span>
+            </div>
+            {viewMode !== 'truth' && (
+              <div className="flex items-center space-x-1">
+                <div className="w-3 h-3 bg-amber-400"></div>
+                <span>Reconned</span>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -284,15 +384,21 @@ export default function GameCanvas() {
             {viewMode === 'posterior' && (
               <span>Belief: {(grid[hoveredCell.y][hoveredCell.x].posteriorProbability * 100).toFixed(1)}%</span>
             )}
-            {viewMode === 'priorField' && (
-              <span>Prior θ: {(grid[hoveredCell.y][hoveredCell.x].hostilePriorProbability * 100).toFixed(1)}%</span>
-            )}
-            {viewMode === 'truth' && config.showTruthOverlay && (
-              <>
-                <span>Truth: {grid[hoveredCell.y][hoveredCell.x].hasHostile ? 'Hostile' : 'Clear'}</span>
-                <span>Infra: {grid[hoveredCell.y][hoveredCell.x].hasInfrastructure ? 'Yes' : 'No'}</span>
-              </>
-            )}
+                         {viewMode === 'priorField' && (
+               <span>Prior θ: {(grid[hoveredCell.y][hoveredCell.x].hostilePriorProbability * 100).toFixed(1)}%</span>
+             )}
+             {viewMode === 'expectedValue' && (
+               <span>EV: {getEVHeatmap(1)[hoveredCell.y][hoveredCell.x].toFixed(0)} points</span>
+             )}
+             {viewMode === 'valueOfInformation' && (
+               <span>VOI: +{getVOIHeatmap(selectedSensor, 1)[hoveredCell.y][hoveredCell.x].toFixed(0)} points</span>
+             )}
+             {viewMode === 'truth' && config.showTruthOverlay && (
+               <>
+                 <span>Truth: {grid[hoveredCell.y][hoveredCell.x].hasHostile ? 'Hostile' : 'Clear'}</span>
+                 <span>Infra: {grid[hoveredCell.y][hoveredCell.x].hasInfrastructure ? 'Yes' : 'No'}</span>
+               </>
+             )}
             {grid[hoveredCell.y][hoveredCell.x].reconHistory.length > 0 && viewMode !== 'truth' && (
               <span>Recons: {grid[hoveredCell.y][hoveredCell.x].reconHistory.length}</span>
             )}

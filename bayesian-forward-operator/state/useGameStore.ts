@@ -22,6 +22,14 @@ import {
   RunningCalibration,
   DEFAULT_DIFFUSION_CONFIG
 } from '@/lib/inference';
+import {
+  calculateStrikeEV,
+  validateStrike,
+  executeStrike,
+  generateEVHeatmap,
+  generateVOIHeatmap,
+  recommendAction
+} from '@/lib/decision-analysis';
 
 const DEFAULT_CONFIG: GameConfig = {
   gridSize: 14,
@@ -96,7 +104,7 @@ interface GameStore extends GameState {
   useDailySeed: () => void;
   useRandomSeed: () => void;
   performRecon: (x: number, y: number, sensor: SensorType) => void;
-  performStrike: (x: number, y: number, radius: number) => void;
+  performStrike: (x: number, y: number, radius: number, forceExecute?: boolean) => void;
   nextTurn: () => void;
   updateConfig: (config: Partial<GameConfig>) => void;
   
@@ -105,6 +113,12 @@ interface GameStore extends GameState {
   
   // Enhanced analytics
   updateSpatialAnalytics: () => void;
+  
+  // Decision analysis
+  getEVHeatmap: (radius?: number) => number[][];
+  getVOIHeatmap: (sensor: SensorType, radius?: number) => number[][];
+  getRecommendation: (sensor: SensorType) => any;
+  validateStrikeAction: (x: number, y: number, radius: number) => any;
   
   // Persistence
   saveToLocalStorage: () => void;
@@ -310,55 +324,62 @@ export const useGameStore = create<GameStore>()(
       });
     },
     
-    performStrike: (x: number, y: number, radius: number) => {
+    performStrike: (x: number, y: number, radius: number, forceExecute: boolean = false) => {
       set((state) => {
-        const cost = state.config.strikeCost;
-        if (state.remainingBudget < cost) return;
+        // Validate strike constraints
+        const validation = validateStrike(state.grid, x, y, radius, state.config);
         
-        let hostilesHit = 0;
-        let infraHit = 0;
-        const affectedCells: { x: number, y: number }[] = [];
-        
-        // Calculate Area of Effect (Manhattan distance)
-        for (let dy = -radius; dy <= radius; dy++) {
-          for (let dx = -radius; dx <= radius; dx++) {
-            if (Math.abs(dx) + Math.abs(dy) <= radius) {
-              const cellX = x + dx;
-              const cellY = y + dy;
-              
-              if (cellX >= 0 && cellX < state.config.gridSize &&
-                  cellY >= 0 && cellY < state.config.gridSize) {
-                const cell = state.grid[cellY][cellX];
-                affectedCells.push({ x: cellX, y: cellY });
-                
-                if (cell.hasHostile) {
-                  hostilesHit++;
-                  cell.hasHostile = false; // Neutralize hostile
-                }
-                
-                if (cell.hasInfrastructure) {
-                  infraHit++;
-                }
-              }
-            }
-          }
+        // Check budget
+        if (state.remainingBudget < validation.outcome.cost) {
+          console.warn('Insufficient budget for strike');
+          return;
         }
         
-        const points = hostilesHit * state.config.hostileValue - 
-                      infraHit * state.config.infraPenalty - cost;
+        // Check collateral damage constraints
+        if (!validation.allowed && !forceExecute) {
+          console.warn('Strike blocked:', validation.reason);
+          return;
+        }
         
-        state.score += points;
-        state.remainingBudget -= cost;
-        state.analytics.hostilesNeutralized += hostilesHit;
-        state.analytics.infraHits += infraHit;
-        state.analytics.totalCost += cost;
+        if (validation.requiresConfirmation && !forceExecute) {
+          console.warn('Strike requires confirmation:', validation.reason);
+          return;
+        }
         
+        // Execute the strike against truth
+        const result = executeStrike(state.grid, x, y, radius, state.config);
+        
+        // Update game state with actual results
+        state.score += result.netPoints;
+        state.remainingBudget -= validation.outcome.cost;
+        state.analytics.hostilesNeutralized += result.hostilesHit;
+        state.analytics.infraHits += result.infraHit;
+        state.analytics.totalCost += validation.outcome.cost;
+        
+        // Log detailed strike event
         state.eventLog.push({
           turn: state.currentTurn,
           type: 'strike',
-          data: { x, y, radius, hostilesHit, infraHit, points, affectedCells },
+          data: { 
+            x, 
+            y, 
+            radius,
+            hostilesHit: result.hostilesHit,
+            infraHit: result.infraHit,
+            totalReward: result.totalReward,
+            totalPenalty: result.totalPenalty,
+            netPoints: result.netPoints,
+            cost: validation.outcome.cost,
+            expectedValue: validation.outcome.expectedValue,
+            actualValue: result.netPoints,
+            affectedCells: result.affectedCells,
+            validation: validation.reason,
+          },
           timestamp: Date.now(),
         });
+        
+        // Update spatial analytics after strike
+        get().updateSpatialAnalytics();
       });
     },
     
@@ -396,6 +417,26 @@ export const useGameStore = create<GameStore>()(
         state.analytics.truthCorrelation = calculateSpatialCorrelation(posteriorField, truthField);
         state.analytics.spatialAccuracy = calculateSpatialAccuracy(posteriorField, truthField);
       });
+    },
+    
+    getEVHeatmap: (radius = 1) => {
+      const state = get();
+      return generateEVHeatmap(state.grid, radius, state.config);
+    },
+    
+    getVOIHeatmap: (sensor: SensorType, radius = 1) => {
+      const state = get();
+      return generateVOIHeatmap(state.grid, sensor, state.config, radius, state.config.seed);
+    },
+    
+    getRecommendation: (sensor: SensorType) => {
+      const state = get();
+      return recommendAction(state.grid, state.config, state.remainingBudget, state.currentTurn, sensor);
+    },
+    
+    validateStrikeAction: (x: number, y: number, radius: number) => {
+      const state = get();
+      return validateStrike(state.grid, x, y, radius, state.config);
     },
     
     saveToLocalStorage: () => {
