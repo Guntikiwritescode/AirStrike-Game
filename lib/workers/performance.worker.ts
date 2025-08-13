@@ -294,11 +294,11 @@ self.onmessage = function(event: MessageEvent<PerformanceWorkerMessage>) {
         break;
         
       case 'calculate_metrics':
-        result = PerformanceCalculator.calculateMetrics(payload.grid, payload.config);
+        result = PerformanceCalculator.calculateMetrics((payload as { grid: GameCell[][], config: GameConfig }).grid, (payload as { grid: GameCell[][], config: GameConfig }).config);
         break;
         
       case 'calculate_risk':
-        result = PerformanceCalculator.calculateRiskAnalysis(payload.grid, payload.config);
+        result = PerformanceCalculator.calculateRiskAnalysis((payload as { grid: GameCell[][], config: GameConfig }).grid, (payload as { grid: GameCell[][], config: GameConfig }).config);
         break;
         
       default:
@@ -311,7 +311,7 @@ self.onmessage = function(event: MessageEvent<PerformanceWorkerMessage>) {
     self.postMessage({
       type: `${type.split('_')[1]}_result` as PerformanceWorkerResponse['type'],
       payload: {
-        ...result,
+        ...(result as Record<string, unknown>),
         processingTime
       },
       id

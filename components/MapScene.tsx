@@ -6,7 +6,9 @@ import { MapView } from '@deck.gl/core';
 import { TerrainLayer } from '@deck.gl/geo-layers';
 import { ScatterplotLayer, PathLayer, PolygonLayer } from '@deck.gl/layers';
 import { Map as ReactMapGL } from 'react-map-gl/maplibre';
-import { HeatmapType, InfrastructureEntity, AircraftEntity, FlightPath, TacticalBoundary, AreaOfInterest, SensorCone } from '@/lib/types';
+import { HeatmapType, InfrastructureEntity, AircraftEntity, FlightPath, TacticalBoundary, AreaOfInterest, SensorCone, GameCell } from '@/lib/types';
+import { processHeatmapData, heatmapTransitionManager, ProcessedHeatmapData } from '@/lib/heatmap-processor';
+import HeatmapLegend from '@/components/ui/HeatmapLegend';
 import { useThrottledCallback } from '@/lib/hooks/usePerfStats';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -16,15 +18,6 @@ interface ReconHistory {
   confidence?: number;
   effectiveTPR: number;
   effectiveFPR: number;
-}
-
-interface GameCell {
-  x: number;
-  y: number;
-  posteriorProbability: number;
-  hasHostile?: boolean;
-  hasInfrastructure?: boolean;
-  reconHistory?: ReconHistory[];
 }
 
 interface MapSceneProps {
@@ -93,6 +86,10 @@ function MapScene({
   const [devicePixelRatio, setDevicePixelRatio] = useState(1);
   const [mousePosition, setMousePosition] = useState<{ lat: number; lng: number } | null>(null);
   const [animationTime, setAnimationTime] = useState(0);
+  
+  // Heatmap state
+  const [currentHeatmapData, setCurrentHeatmapData] = useState<ProcessedHeatmapData | null>(null);
+  const [previousViewMode, setPreviousViewMode] = useState<HeatmapType>(viewMode);
   // Tooltip state temporarily disabled
   // const [hoveredObject, setHoveredObject] = useState<unknown>(null);
   // const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
@@ -146,6 +143,56 @@ function MapScene({
     const animationId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animationId);
   }, []);
+
+  // Process heatmap data when grid or viewMode changes
+  const processedHeatmapData = useMemo(() => {
+    if (!grid || grid.length === 0) return null;
+    
+    return processHeatmapData(grid, viewMode, bounds, {
+      fadeOpacity: 0.8,
+      minOpacity: 0.1,
+      maxOpacity: 0.9
+    });
+  }, [grid, viewMode, bounds]);
+
+  // Handle smooth transitions between heatmap modes
+  useEffect(() => {
+    if (!processedHeatmapData) return;
+
+    const transitionKey = 'main-heatmap';
+    
+    // Start transition if view mode changed
+    if (previousViewMode !== viewMode) {
+      heatmapTransitionManager.startTransition(
+        transitionKey,
+        currentHeatmapData,
+        processedHeatmapData,
+        180 // 180ms transition
+      );
+      setPreviousViewMode(viewMode);
+    }
+
+    // Animation frame to update transitions
+    let animationId: number;
+    const updateTransition = () => {
+      const transitionData = heatmapTransitionManager.getTransitionData(transitionKey);
+      if (transitionData) {
+        setCurrentHeatmapData(transitionData);
+        animationId = requestAnimationFrame(updateTransition);
+      } else if (!heatmapTransitionManager.isTransitioning(transitionKey)) {
+        setCurrentHeatmapData(processedHeatmapData);
+      }
+    };
+
+    // Start the transition animation
+    animationId = requestAnimationFrame(updateTransition);
+
+    return () => {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+    };
+  }, [processedHeatmapData, viewMode, previousViewMode, currentHeatmapData]);
 
 
 
@@ -361,6 +408,33 @@ function MapScene({
       color: showLabels ? [255, 255, 255] : [40, 60, 80], // Tactical tint when no labels
       opacity: 0.8,
       wireframe: false
+    }),
+
+    // Professional heatmap layer with smooth transitions
+    currentHeatmapData && new ScatterplotLayer({
+      id: 'heatmap-points',
+      data: currentHeatmapData.dataPoints,
+      getPosition: (d: { position: [number, number] }) => d.position,
+      getRadius: () => Math.max(20, (bounds.east - bounds.west) / currentHeatmapData.gridSize * 100000 / 2),
+      getFillColor: (d: { color: [number, number, number, number] }) => d.color,
+      getLineColor: () => [0, 0, 0, 0],
+      lineWidthMinPixels: 0,
+      stroked: false,
+      filled: true,
+      radiusUnits: 'meters',
+      radiusScale: 1,
+      radiusMinPixels: 1,
+      pickable: true,
+              updateTriggers: {
+          getFillColor: [viewMode, animationTime],
+          getRadius: [bounds]
+        },
+      transitions: {
+        getFillColor: {
+          duration: 180,
+          easing: (t: number) => t * t * (3 - 2 * t) // smoothstep
+        }
+      }
     }),
     
     // Game grid overlay with DPR-aware sizing
@@ -583,7 +657,34 @@ function MapScene({
       jointRounded: true,
       billboard: false // Keep 3D
     })] : [])
-  ], [layerData, viewMode, config.showTruthOverlay, showLabels, onCellClick, onCellHover, devicePixelRatio, viewState.zoom, infrastructure, aircraft, flightPathData, bounds, boundaries, aois, sensorCones, animationTime, generateSensorConePolygon]);
+  ], [layerData, viewMode, config.showTruthOverlay, showLabels, onCellClick, onCellHover, devicePixelRatio, viewState.zoom, infrastructure, aircraft, flightPathData, bounds, boundaries, aois, sensorCones, animationTime, generateSensorConePolygon, currentHeatmapData]);
+
+  // Helper functions for heatmap legend
+  const getHeatmapTitle = (viewMode: HeatmapType): string => {
+    switch (viewMode) {
+      case 'posterior': return 'P(Hostile)';
+      case 'expectedValue': return 'Expected Value';
+      case 'variance': return 'Uncertainty';
+      case 'riskAverse': return 'Risk Level';
+      case 'truth': return 'Ground Truth';
+      default: return 'Probability';
+    }
+  };
+
+  const getHeatmapUnit = (viewMode: HeatmapType): string => {
+    switch (viewMode) {
+      case 'posterior':
+      case 'variance':
+        return '';
+      case 'expectedValue':
+      case 'riskAverse':
+        return '';
+      case 'truth':
+        return '';
+      default:
+        return '';
+    }
+  };
 
   // View configuration
   const views = useMemo(() => [
@@ -677,6 +778,20 @@ function MapScene({
 
       {/* Tactical Tooltip - Temporarily disabled */}
       {/* Will be implemented in separate commit */}
+
+      {/* Heatmap Legend */}
+      {currentHeatmapData && (
+        <HeatmapLegend
+          min={currentHeatmapData.bounds.minValue}
+          max={currentHeatmapData.bounds.maxValue}
+          colorScheme={currentHeatmapData.colorScheme}
+          title={getHeatmapTitle(viewMode)}
+          unit={getHeatmapUnit(viewMode)}
+          position="top-right"
+          width={180}
+          height={16}
+        />
+      )}
 
       {/* Performance indicator */}
       {process.env.NODE_ENV === 'development' && (
