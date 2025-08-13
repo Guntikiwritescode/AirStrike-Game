@@ -9,6 +9,7 @@ import { SensorReading } from '@/lib/sensors';
 import GameCanvas from './GameCanvas';
 import MapScene from '@/components/MapScene';
 import { generateSampleInfrastructure, generateSampleAircraft } from '@/lib/3d-entities';
+import { generateSampleBoundaries, generateSampleAOIs, generateSampleSensorCones } from '@/lib/tactical-overlays';
 import AnalyticsPanel from './AnalyticsPanel';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import BayesExplanationModal from '@/components/BayesExplanationModal';
@@ -70,12 +71,15 @@ export default function GamePage() {
   const [showLabels, setShowLabels] = useState(false);
   const [use3DMap, setUse3DMap] = useState(true);
 
-  // Generate 3D entities for demonstration
+  // Generate 3D entities and tactical overlays for demonstration
   const mapBounds = {
     north: 40.7829, south: 40.7489, east: -73.9441, west: -73.9901
   };
   const infrastructure = generateSampleInfrastructure(grid, mapBounds);
-  const { aircraft, flightPaths } = generateSampleAircraft(mapBounds); // Toggle between 2D canvas and 3D map
+  const { aircraft, flightPaths } = generateSampleAircraft(mapBounds);
+  const boundaries = generateSampleBoundaries(mapBounds);
+  const aois = generateSampleAOIs(mapBounds);
+  const sensorCones = generateSampleSensorCones(mapBounds, infrastructure); // Toggle between 2D canvas and 3D map
 
   // Handle recon action
   const handleRecon = async (x: number, y: number, sensor: SensorType) => {
@@ -240,6 +244,9 @@ export default function GamePage() {
                     infrastructure={infrastructure}
                     aircraft={aircraft}
                     flightPaths={flightPaths}
+                    boundaries={boundaries}
+                    aois={aois}
+                    sensorCones={sensorCones}
                   />
                 ) : (
                 <GameCanvas 

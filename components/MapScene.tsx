@@ -4,9 +4,10 @@ import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react'
 import DeckGL from '@deck.gl/react';
 import { MapView } from '@deck.gl/core';
 import { TerrainLayer } from '@deck.gl/geo-layers';
-import { ScatterplotLayer, PathLayer } from '@deck.gl/layers';
+import { ScatterplotLayer, PathLayer, PolygonLayer } from '@deck.gl/layers';
 import { Map as ReactMapGL } from 'react-map-gl/maplibre';
-import { HeatmapType, InfrastructureEntity, AircraftEntity, FlightPath } from '@/lib/types';
+import { HeatmapType, InfrastructureEntity, AircraftEntity, FlightPath, TacticalBoundary, AreaOfInterest, SensorCone } from '@/lib/types';
+import { generateTooltipData } from '@/lib/tactical-overlays';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 // Types for our game integration
@@ -54,6 +55,11 @@ interface MapSceneProps {
   infrastructure?: InfrastructureEntity[];
   aircraft?: AircraftEntity[];
   flightPaths?: FlightPath[];
+  
+  // Tactical overlays
+  boundaries?: TacticalBoundary[];
+  aois?: AreaOfInterest[];
+  sensorCones?: SensorCone[];
 }
 
 // Default tactical area bounds (can be customized)
@@ -76,13 +82,19 @@ export default function MapScene({
   bounds = DEFAULT_BOUNDS,
   infrastructure = [],
   aircraft = [],
-  flightPaths = []
+  flightPaths = [],
+  boundaries = [],
+  aois = [],
+  sensorCones = []
 }: MapSceneProps) {
   // Refs for ResizeObserver and DPR handling
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
   const [devicePixelRatio, setDevicePixelRatio] = useState(1);
   const [mousePosition, setMousePosition] = useState<{ lat: number; lng: number } | null>(null);
+  const [animationTime, setAnimationTime] = useState(0);
+  const [hoveredObject, setHoveredObject] = useState<unknown>(null);
+  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
 
   // Map view state with proper scale constraints
   const [viewState, setViewState] = useState({
@@ -119,6 +131,19 @@ export default function MapScene({
     updateDPR();
     window.addEventListener('resize', updateDPR);
     return () => window.removeEventListener('resize', updateDPR);
+  }, []);
+
+  // Animation loop for dashed lines
+  useEffect(() => {
+    const startTime = Date.now();
+    const animate = () => {
+      const elapsed = (Date.now() - startTime) / 1000; // seconds
+      setAnimationTime(elapsed);
+      requestAnimationFrame(animate);
+    };
+    
+    const animationId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationId);
   }, []);
 
 
@@ -169,6 +194,35 @@ export default function MapScene({
   }, [viewState.zoom, viewState.latitude]);
 
   const scaleBarData = getScaleBarData();
+
+  // Generate sensor cone polygons
+  const generateSensorConePolygon = useCallback((cone: SensorCone): [number, number, number][] => {
+    const polygon: [number, number, number][] = [];
+    const [lng, lat, alt] = cone.position;
+    
+    // Convert range from meters to approximate lat/lng degrees
+    const rangeLng = cone.range / (111320 * Math.cos(lat * Math.PI / 180)); // meters to lng degrees
+    const rangeLat = cone.range / 110540; // meters to lat degrees
+    
+    // Start at sensor position
+    polygon.push([lng, lat, alt]);
+    
+    // Create arc for the sensor cone
+    const segments = 24; // Smooth arc
+    const halfFOV = cone.fieldOfView / 2;
+    
+    for (let i = 0; i <= segments; i++) {
+      const angle = cone.bearing - halfFOV + (cone.fieldOfView * i / segments);
+      const x = lng + Math.sin(angle) * rangeLng;
+      const y = lat + Math.cos(angle) * rangeLat;
+      polygon.push([x, y, alt + cone.sectorHeight]);
+    }
+    
+    // Close the polygon by returning to center
+    polygon.push([lng, lat, alt]);
+    
+    return polygon;
+  }, []);
 
   // Note: 3D models will be implemented in future iteration
   // Currently using enhanced ScatterplotLayer for infrastructure and aircraft
@@ -407,6 +461,93 @@ export default function MapScene({
       }
     }),
 
+    // Tactical Boundaries (FEBA/ROZ lines with animated dashes)
+    ...(boundaries.length > 0 ? [new PathLayer({
+      id: 'tactical-boundaries',
+      data: boundaries,
+      pickable: true,
+      getPath: (d: TacticalBoundary): [number, number, number][] => d.path,
+      getColor: (d: TacticalBoundary): [number, number, number, number] => d.color,
+      getWidth: 8, // meters
+      widthUnits: 'meters',
+      opacity: 0.9,
+      capRounded: false,
+      jointRounded: false,
+      billboard: false,
+      dashJustified: true,
+      getDashArray: (d: TacticalBoundary): [number, number] => [d.dashLength, d.dashLength],
+      getOffset: (d: TacticalBoundary): number => {
+        return d.animated ? (animationTime * 20) % (d.dashLength * 2) : 0; // 3s loop
+      },
+      updateTriggers: {
+        getOffset: animationTime
+      }
+    })] : []),
+
+    // Areas of Interest (AOIs) 
+    ...(aois.length > 0 ? [new PolygonLayer({
+      id: 'aois',
+      data: aois,
+      pickable: true,
+      stroked: true,
+      filled: true,
+      extruded: false,
+      getPolygon: (d: AreaOfInterest): [number, number, number][] => d.polygon,
+      getFillColor: (d: AreaOfInterest): [number, number, number, number] => {
+        const baseColor: [number, number, number] = [85, 227, 255]; // Cyan
+        const alpha = d.priority === 'HIGH' ? 40 : d.priority === 'MEDIUM' ? 25 : 15;
+        return [...baseColor, alpha];
+      },
+      getLineColor: [85, 227, 255, 180], // Cyan stroke
+      getLineWidth: 3,
+      lineWidthUnits: 'meters',
+      lineWidthMinPixels: Math.ceil(1 * devicePixelRatio),
+      updateTriggers: {
+        getFillColor: aois.map(a => a.priority)
+      }
+    })] : []),
+
+    // Sensor Footprint Cones
+    ...(sensorCones.length > 0 ? [new PolygonLayer({
+      id: 'sensor-cones',
+      data: sensorCones,
+      pickable: true,
+      stroked: true,
+      filled: true,
+      extruded: true,
+      getPolygon: (d: SensorCone): [number, number, number][] => generateSensorConePolygon(d),
+      getFillColor: (d: SensorCone): [number, number, number, number] => {
+        // Different colors for different sensor types
+        const sensorColors: Record<string, [number, number, number]> = {
+          'VISUAL': [255, 255, 100],    // Yellow
+          'THERMAL': [255, 150, 100],   // Orange
+          'RADAR': [100, 255, 100],     // Green
+          'ACOUSTIC': [150, 100, 255]   // Purple
+        };
+        const baseColor = sensorColors[d.sensorType] || [200, 200, 200];
+        const alpha = Math.floor(d.confidence * 60); // 0-60 based on confidence
+        return [...baseColor, alpha];
+      },
+      getLineColor: (d: SensorCone): [number, number, number, number] => {
+        const sensorColors: Record<string, [number, number, number]> = {
+          'VISUAL': [255, 255, 100],
+          'THERMAL': [255, 150, 100],
+          'RADAR': [100, 255, 100],
+          'ACOUSTIC': [150, 100, 255]
+        };
+        const baseColor = sensorColors[d.sensorType] || [200, 200, 200];
+        return [...baseColor, 150];
+      },
+      getElevation: (d: SensorCone): number => d.sectorHeight,
+      getLineWidth: 4,
+      lineWidthUnits: 'meters',
+      lineWidthMinPixels: Math.ceil(1 * devicePixelRatio),
+      updateTriggers: {
+        getFillColor: sensorCones.map(s => `${s.sensorType}-${s.confidence}`),
+        getPolygon: sensorCones.map(s => `${s.position[0]}-${s.position[1]}-${s.bearing}-${s.fieldOfView}`)
+      }
+    })] : []),
+
     // 3D Flight paths
     ...(flightPathData.length > 0 ? [new PathLayer({
       id: 'flight-paths',
@@ -421,7 +562,7 @@ export default function MapScene({
       jointRounded: true,
       billboard: false // Keep 3D
     })] : [])
-  ], [layerData, viewMode, config.showTruthOverlay, showLabels, onCellClick, onCellHover, devicePixelRatio, viewState.zoom, infrastructure, aircraft, flightPathData, bounds]);
+  ], [layerData, viewMode, config.showTruthOverlay, showLabels, onCellClick, onCellHover, devicePixelRatio, viewState.zoom, infrastructure, aircraft, flightPathData, bounds, boundaries, aois, sensorCones, animationTime, generateSensorConePolygon]);
 
   // View configuration
   const views = useMemo(() => [
@@ -460,6 +601,15 @@ export default function MapScene({
               lat: info.coordinate[1], 
               lng: info.coordinate[0] 
             });
+          }
+          
+          // Handle tooltip for hovered objects
+          if (info.object && info.x && info.y) {
+            setHoveredObject(info.object);
+            setTooltipPosition({ x: info.x, y: info.y });
+          } else {
+            setHoveredObject(null);
+            setTooltipPosition(null);
           }
         }}
         layers={layers}
@@ -519,7 +669,9 @@ export default function MapScene({
           <div>DPR: {devicePixelRatio.toFixed(1)}x</div>
         </div>
       </div>
-        
+
+
+
       {/* Performance indicator */}
       {process.env.NODE_ENV === 'development' && (
         <div className="absolute top-2 right-2 text-xs font-mono bg-panel2/80 text-ink px-2 py-1 rounded border border-grid/40">
