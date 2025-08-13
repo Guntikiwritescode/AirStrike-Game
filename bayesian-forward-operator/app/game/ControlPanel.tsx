@@ -191,6 +191,16 @@ export default function ControlPanel() {
             <span className="text-slate-400">Brier Score:</span>
             <span>{analytics.brierScore.toFixed(3)}</span>
           </div>
+          
+          <div className="flex justify-between">
+            <span className="text-slate-400">Truth Correlation:</span>
+            <span>{analytics.truthCorrelation.toFixed(3)}</span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="text-slate-400">Spatial Accuracy:</span>
+            <span>{(analytics.spatialAccuracy * 100).toFixed(1)}%</span>
+          </div>
         </div>
       </div>
 

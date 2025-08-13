@@ -5,6 +5,31 @@ export interface GameCell {
   hasInfrastructure: boolean;
   posteriorProbability: number; // P(hostile | observations)
   reconHistory: ReconResult[];
+  // Enhanced truth generation fields
+  hostilePriorProbability: number; // θ(x,y) from spatial field
+  infraPriorProbability: number;   // Base rate for infrastructure
+}
+
+export interface TruthField {
+  hostileField: number[][];        // θ(x,y) values before sampling
+  infraField: number[][];          // Infrastructure probability field
+  hostileTruth: boolean[][];       // H(x,y) sampled truth
+  infraTruth: boolean[][];         // I(x,y) sampled truth
+}
+
+export interface SpatialFieldConfig {
+  noiseScale: number;              // Standard deviation of Gaussian noise
+  smoothingSigma: number;          // Gaussian smoothing kernel sigma
+  logisticSteepness: number;       // Steepness of logistic transformation
+  hostileBaseProbability: number;  // Base probability for hostiles
+  infraBaseProbability: number;    // Base probability for infrastructure
+}
+
+export interface BetaPriorConfig {
+  hostileAlpha: number;            // Beta prior α for hostiles
+  hostileBeta: number;             // Beta prior β for hostiles
+  infraAlpha: number;              // Beta prior α for infrastructure  
+  infraBeta: number;               // Beta prior β for infrastructure
 }
 
 export interface ReconResult {
@@ -44,6 +69,13 @@ export interface GameConfig {
   collateralThreshold: number; // max allowed P(infra hit)
   riskAversion: number; // λ for CVaR
   seed: string;
+  
+  // Enhanced truth generation config
+  spatialField: SpatialFieldConfig;
+  betaPriors: BetaPriorConfig;
+  
+  // Development options
+  showTruthOverlay: boolean;       // Developer mode: show hidden truth
 }
 
 export interface GameState {
@@ -56,6 +88,9 @@ export interface GameState {
   gameEnded: boolean;
   eventLog: GameEvent[];
   analytics: GameAnalytics;
+  
+  // Enhanced truth storage
+  truthField: TruthField;
 }
 
 export interface GameEvent {
@@ -73,6 +108,10 @@ export interface GameAnalytics {
   logLoss: number;
   calibrationData: CalibrationPoint[];
   evAccuracy: number;
+  
+  // Enhanced analytics for truth comparison
+  truthCorrelation: number;        // Correlation between beliefs and truth
+  spatialAccuracy: number;         // How well spatial patterns were detected
 }
 
 export interface CalibrationPoint {
@@ -85,9 +124,11 @@ export interface HeatmapData {
   posterior: number[][];
   expectedValue: number[][];
   valueOfInformation: number[][];
+  truth: number[][];               // For developer overlay
+  priorField: number[][];          // θ(x,y) field visualization
 }
 
-export type HeatmapType = 'posterior' | 'expectedValue' | 'valueOfInformation';
+export type HeatmapType = 'posterior' | 'expectedValue' | 'valueOfInformation' | 'truth' | 'priorField';
 
 export interface PolicyAction {
   type: 'recon' | 'strike';

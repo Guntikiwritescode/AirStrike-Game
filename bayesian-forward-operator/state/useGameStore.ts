@@ -1,7 +1,15 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { GameState, GameConfig, GameCell, SensorType, ReconResult, GameEvent } from '@/lib/types';
+import { GameState, GameConfig, GameCell, SensorType, ReconResult, GameEvent, TruthField } from '@/lib/types';
 import { SeededRNG, getDailySeed, generateRandomSeed } from '@/lib/rng';
+import { 
+  generateTruthField, 
+  createEnhancedGameCells, 
+  calculateSpatialCorrelation, 
+  calculateSpatialAccuracy,
+  DEFAULT_SPATIAL_CONFIG,
+  DEFAULT_BETA_PRIORS
+} from '@/lib/truth-generation';
 
 const DEFAULT_CONFIG: GameConfig = {
   gridSize: 14,
@@ -14,23 +22,30 @@ const DEFAULT_CONFIG: GameConfig = {
   collateralThreshold: 0.1,
   riskAversion: 0.5,
   seed: getDailySeed(),
+  
+  // Enhanced truth generation config
+  spatialField: DEFAULT_SPATIAL_CONFIG,
+  betaPriors: DEFAULT_BETA_PRIORS,
+  
+  // Development options
+  showTruthOverlay: false,
 };
 
-const createInitialGrid = (size: number): GameCell[][] => {
-  return Array.from({ length: size }, (_, y) =>
-    Array.from({ length: size }, (_, x) => ({
-      x,
-      y,
-      hasHostile: false,
-      hasInfrastructure: false,
-      posteriorProbability: 0.3, // Prior probability
-      reconHistory: [],
-    }))
-  );
+const createInitialTruthField = (size: number): TruthField => {
+  // Create empty truth field for initial state
+  const emptyField = Array(size).fill(null).map(() => Array(size).fill(0));
+  const emptyTruth = Array(size).fill(null).map(() => Array(size).fill(false));
+  
+  return {
+    hostileField: emptyField,
+    infraField: emptyField,
+    hostileTruth: emptyTruth,
+    infraTruth: emptyTruth,
+  };
 };
 
 const createInitialState = (): GameState => ({
-  grid: createInitialGrid(DEFAULT_CONFIG.gridSize),
+  grid: [],
   config: DEFAULT_CONFIG,
   currentTurn: 0,
   remainingBudget: DEFAULT_CONFIG.initialBudget,
@@ -46,7 +61,10 @@ const createInitialState = (): GameState => ({
     logLoss: 0,
     calibrationData: [],
     evAccuracy: 0,
+    truthCorrelation: 0,
+    spatialAccuracy: 0,
   },
+  truthField: createInitialTruthField(DEFAULT_CONFIG.gridSize),
 });
 
 interface GameStore extends GameState {
@@ -62,6 +80,12 @@ interface GameStore extends GameState {
   nextTurn: () => void;
   updateConfig: (config: Partial<GameConfig>) => void;
   
+  // Truth overlay for development
+  toggleTruthOverlay: () => void;
+  
+  // Enhanced analytics
+  updateSpatialAnalytics: () => void;
+  
   // Persistence
   saveToLocalStorage: () => void;
   loadFromLocalStorage: () => boolean;
@@ -75,7 +99,24 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         const newConfig = { ...DEFAULT_CONFIG, ...configOverrides };
         state.config = newConfig;
-        state.grid = createInitialGrid(newConfig.gridSize);
+        
+        // Generate enhanced truth field using Gaussian-smoothed noise
+        state.truthField = generateTruthField(
+          newConfig.gridSize,
+          newConfig.gridSize,
+          newConfig.spatialField,
+          newConfig.betaPriors,
+          newConfig.seed
+        );
+        
+        // Create game cells with enhanced truth and Beta priors
+        state.grid = createEnhancedGameCells(
+          newConfig.gridSize,
+          newConfig.gridSize,
+          state.truthField,
+          newConfig.betaPriors
+        );
+        
         state.currentTurn = 0;
         state.remainingBudget = newConfig.initialBudget;
         state.score = 0;
@@ -90,40 +131,9 @@ export const useGameStore = create<GameStore>()(
           logLoss: 0,
           calibrationData: [],
           evAccuracy: 0,
+          truthCorrelation: 0,
+          spatialAccuracy: 0,
         };
-        
-        // Generate truth using seeded RNG
-        const rng = new SeededRNG(newConfig.seed);
-        
-        // Generate spatial field for hostiles (simplified Gaussian kernel)
-        const hostileField: number[][] = [];
-        for (let y = 0; y < newConfig.gridSize; y++) {
-          hostileField[y] = [];
-          for (let x = 0; x < newConfig.gridSize; x++) {
-            // Create clustered hostiles using distance from random centers
-            let baseRate = 0.2;
-            const numCenters = rng.randInt(2, 5);
-            
-            for (let i = 0; i < numCenters; i++) {
-              const centerX = rng.randFloat(0, newConfig.gridSize);
-              const centerY = rng.randFloat(0, newConfig.gridSize);
-              const dist = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
-              const influence = Math.exp(-dist / 3) * 0.4;
-              baseRate += influence;
-            }
-            
-            hostileField[y][x] = Math.min(0.8, baseRate);
-            state.grid[y][x].hasHostile = rng.bernoulli(hostileField[y][x]);
-          }
-        }
-        
-        // Generate sparse infrastructure
-        const infraRate = 0.05;
-        for (let y = 0; y < newConfig.gridSize; y++) {
-          for (let x = 0; x < newConfig.gridSize; x++) {
-            state.grid[y][x].hasInfrastructure = rng.bernoulli(infraRate);
-          }
-        }
       });
     },
     
@@ -222,6 +232,9 @@ export const useGameStore = create<GameStore>()(
           data: { x, y, sensor, reading, posterior: cell.posteriorProbability },
           timestamp: Date.now(),
         });
+        
+        // Update spatial analytics after each recon
+        get().updateSpatialAnalytics();
       });
     },
     
@@ -289,6 +302,27 @@ export const useGameStore = create<GameStore>()(
     updateConfig: (configOverrides) => {
       set((state) => {
         state.config = { ...state.config, ...configOverrides };
+      });
+    },
+    
+    toggleTruthOverlay: () => {
+      set((state) => {
+        state.config.showTruthOverlay = !state.config.showTruthOverlay;
+      });
+    },
+    
+    updateSpatialAnalytics: () => {
+      set((state) => {
+        // Calculate correlation between posterior beliefs and truth
+        const posteriorField = state.grid.map(row => 
+          row.map(cell => cell.posteriorProbability)
+        );
+        const truthField = state.grid.map(row => 
+          row.map(cell => cell.hasHostile ? 1 : 0)
+        );
+        
+        state.analytics.truthCorrelation = calculateSpatialCorrelation(posteriorField, truthField);
+        state.analytics.spatialAccuracy = calculateSpatialAccuracy(posteriorField, truthField);
       });
     },
     

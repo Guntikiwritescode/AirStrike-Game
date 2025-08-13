@@ -2,12 +2,13 @@
 
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useGameStore } from '@/state/useGameStore';
-import { SensorType } from '@/lib/types';
+import { SensorType, HeatmapType } from '@/lib/types';
 
 export default function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [selectedSensor, setSelectedSensor] = useState<SensorType>('drone');
   const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null);
+  const [viewMode, setViewMode] = useState<HeatmapType>('posterior');
   
   const {
     grid,
@@ -15,6 +16,7 @@ export default function GameCanvas() {
     gameStarted,
     performRecon,
     performStrike,
+    toggleTruthOverlay,
   } = useGameStore();
 
   const CELL_SIZE = 30;
@@ -94,29 +96,63 @@ export default function GameCanvas() {
       ctx.stroke();
     }
 
-    // Draw cells
+    // Draw cells with different view modes
     grid.forEach((row, y) => {
       row.forEach((cell, x) => {
         const cellX = GRID_PADDING + x * CELL_SIZE;
         const cellY = GRID_PADDING + y * CELL_SIZE;
 
-        // Background color based on posterior probability
-        const intensity = cell.posteriorProbability;
+        // Determine what to display based on view mode
+        let intensity: number;
+        let showText = false;
+        let textValue = '';
+        
+        switch (viewMode) {
+          case 'posterior':
+            intensity = cell.posteriorProbability;
+            showText = intensity > 0.7 || intensity < 0.3;
+            textValue = (intensity * 100).toFixed(0) + '%';
+            break;
+            
+          case 'truth':
+            if (config.showTruthOverlay) {
+              intensity = cell.hasHostile ? 1 : 0;
+              showText = true;
+              textValue = cell.hasHostile ? 'H' : '';
+            } else {
+              intensity = cell.posteriorProbability;
+              showText = intensity > 0.7 || intensity < 0.3;
+              textValue = (intensity * 100).toFixed(0) + '%';
+            }
+            break;
+            
+          case 'priorField':
+            intensity = cell.hostilePriorProbability;
+            showText = true;
+            textValue = (intensity * 100).toFixed(0) + '%';
+            break;
+            
+          default:
+            intensity = cell.posteriorProbability;
+            break;
+        }
+
+        // Background color based on intensity
         const red = Math.floor(255 * intensity);
         const green = Math.floor(255 * (1 - intensity));
-        const blue = 100;
+        const blue = viewMode === 'truth' && config.showTruthOverlay ? 200 : 100;
         
         ctx.fillStyle = `rgba(${red}, ${green}, ${blue}, 0.6)`;
         ctx.fillRect(cellX + 1, cellY + 1, CELL_SIZE - 2, CELL_SIZE - 2);
 
-        // Draw infrastructure markers
-        if (cell.hasInfrastructure) {
+        // Draw infrastructure markers (always show in truth mode if enabled)
+        if (cell.hasInfrastructure && (viewMode !== 'truth' || config.showTruthOverlay)) {
           ctx.fillStyle = '#3b82f6'; // blue-500
           ctx.fillRect(cellX + CELL_SIZE - 8, cellY + 2, 6, 6);
         }
 
-        // Draw recon history markers
-        if (cell.reconHistory.length > 0) {
+        // Draw recon history markers (except in truth mode)
+        if (cell.reconHistory.length > 0 && viewMode !== 'truth') {
           ctx.fillStyle = '#fbbf24'; // amber-400
           ctx.fillRect(cellX + 2, cellY + 2, 6, 6);
         }
@@ -128,20 +164,20 @@ export default function GameCanvas() {
           ctx.strokeRect(cellX, cellY, CELL_SIZE, CELL_SIZE);
         }
 
-        // Show probability as text for high values
-        if (cell.posteriorProbability > 0.7 || cell.posteriorProbability < 0.3) {
+        // Show text values
+        if (showText && textValue) {
           ctx.fillStyle = '#ffffff';
           ctx.font = '10px monospace';
           ctx.textAlign = 'center';
           ctx.fillText(
-            (cell.posteriorProbability * 100).toFixed(0) + '%',
+            textValue,
             cellX + CELL_SIZE / 2,
             cellY + CELL_SIZE / 2 + 3
           );
         }
       });
     });
-  }, [grid, config.gridSize, hoveredCell]);
+  }, [grid, config.gridSize, config.showTruthOverlay, hoveredCell, viewMode]);
 
   useEffect(() => {
     drawGrid();
@@ -167,24 +203,65 @@ export default function GameCanvas() {
         ))}
       </div>
 
+      {/* View Mode Selection */}
+      <div className="flex space-x-2 items-center">
+        <label className="text-sm font-medium">View:</label>
+        {(['posterior', 'priorField', 'truth'] as HeatmapType[]).map((mode) => (
+          <button
+            key={mode}
+            onClick={() => setViewMode(mode)}
+            className={`px-3 py-1 text-sm rounded ${
+              viewMode === mode
+                ? 'bg-green-600 text-white'
+                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+            }`}
+          >
+            {mode === 'posterior' ? 'Beliefs' : 
+             mode === 'priorField' ? 'Priors' : 'Truth'}
+          </button>
+        ))}
+        
+        {/* Developer truth overlay toggle */}
+        {viewMode === 'truth' && (
+          <button
+            onClick={toggleTruthOverlay}
+            className={`px-3 py-1 text-sm rounded border ${
+              config.showTruthOverlay
+                ? 'bg-red-600 text-white border-red-400'
+                : 'bg-slate-700 text-slate-300 border-slate-600 hover:bg-slate-600'
+            }`}
+          >
+            {config.showTruthOverlay ? 'Hide Truth' : 'Show Truth'}
+          </button>
+        )}
+      </div>
+
       {/* Legend */}
-      <div className="flex space-x-4 text-xs text-slate-400">
+      <div className="flex flex-wrap gap-4 text-xs text-slate-400">
         <div className="flex items-center space-x-1">
           <div className="w-3 h-3 bg-red-500 opacity-60"></div>
-          <span>High hostile probability</span>
+          <span>
+            {viewMode === 'truth' && config.showTruthOverlay ? 'Has Hostile' :
+             viewMode === 'priorField' ? 'High Prior θ(x,y)' : 'High Probability'}
+          </span>
         </div>
         <div className="flex items-center space-x-1">
           <div className="w-3 h-3 bg-green-500 opacity-60"></div>
-          <span>Low hostile probability</span>
+          <span>
+            {viewMode === 'truth' && config.showTruthOverlay ? 'No Hostile' :
+             viewMode === 'priorField' ? 'Low Prior θ(x,y)' : 'Low Probability'}
+          </span>
         </div>
         <div className="flex items-center space-x-1">
           <div className="w-3 h-3 bg-blue-500"></div>
           <span>Infrastructure</span>
         </div>
-        <div className="flex items-center space-x-1">
-          <div className="w-3 h-3 bg-amber-400"></div>
-          <span>Reconned</span>
-        </div>
+        {viewMode !== 'truth' && (
+          <div className="flex items-center space-x-1">
+            <div className="w-3 h-3 bg-amber-400"></div>
+            <span>Reconned</span>
+          </div>
+        )}
       </div>
 
       {/* Canvas */}
@@ -202,11 +279,24 @@ export default function GameCanvas() {
       {/* Cell Info */}
       {hoveredCell && (
         <div className="text-sm text-slate-300 text-center">
-          Cell ({hoveredCell.x}, {hoveredCell.y}) - 
-          Hostile Probability: {(grid[hoveredCell.y][hoveredCell.x].posteriorProbability * 100).toFixed(1)}%
-          {grid[hoveredCell.y][hoveredCell.x].reconHistory.length > 0 && 
-            ` - Recons: ${grid[hoveredCell.y][hoveredCell.x].reconHistory.length}`
-          }
+          <div>Cell ({hoveredCell.x}, {hoveredCell.y})</div>
+          <div className="flex justify-center space-x-4 mt-1">
+            {viewMode === 'posterior' && (
+              <span>Belief: {(grid[hoveredCell.y][hoveredCell.x].posteriorProbability * 100).toFixed(1)}%</span>
+            )}
+            {viewMode === 'priorField' && (
+              <span>Prior θ: {(grid[hoveredCell.y][hoveredCell.x].hostilePriorProbability * 100).toFixed(1)}%</span>
+            )}
+            {viewMode === 'truth' && config.showTruthOverlay && (
+              <>
+                <span>Truth: {grid[hoveredCell.y][hoveredCell.x].hasHostile ? 'Hostile' : 'Clear'}</span>
+                <span>Infra: {grid[hoveredCell.y][hoveredCell.x].hasInfrastructure ? 'Yes' : 'No'}</span>
+              </>
+            )}
+            {grid[hoveredCell.y][hoveredCell.x].reconHistory.length > 0 && viewMode !== 'truth' && (
+              <span>Recons: {grid[hoveredCell.y][hoveredCell.x].reconHistory.length}</span>
+            )}
+          </div>
         </div>
       )}
     </div>
