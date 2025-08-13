@@ -19,6 +19,8 @@
     "@deck.gl/geo-layers": "^9.1.14",
     "@deck.gl/layers": "^9.1.14",
     "@deck.gl/mapbox": "^9.1.14",
+    "@deck.gl/mesh-layers": "^9.1.14",
+    "@loaders.gl/gltf": "^4.3.4",
     "@next/font": "^14.2.15",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-popover": "^1.1.14",

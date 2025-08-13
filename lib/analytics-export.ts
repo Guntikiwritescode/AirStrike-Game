@@ -161,6 +161,11 @@ export function generateGameRunExport(
       hostilePriorField: truthField.hostileField,
       infraPriorField: truthField.infraField
     },
+    entities: {
+      infrastructure: [],
+      aircraft: [],
+      flightPaths: []
+    },
     performanceMetrics: performanceMetrics || {
       totalComputationTime: 0,
       workerCacheHitRate: 0,

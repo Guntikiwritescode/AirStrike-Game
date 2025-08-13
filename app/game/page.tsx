@@ -8,6 +8,7 @@ import { useKeyboardShortcuts, KeyboardShortcut } from '@/components/KeyboardSho
 import { SensorReading } from '@/lib/sensors';
 import GameCanvas from './GameCanvas';
 import MapScene from '@/components/MapScene';
+import { generateSampleInfrastructure, generateSampleAircraft } from '@/lib/3d-entities';
 import AnalyticsPanel from './AnalyticsPanel';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import BayesExplanationModal from '@/components/BayesExplanationModal';
@@ -67,7 +68,14 @@ export default function GamePage() {
   const [activeLayer, setActiveLayer] = useState<HeatmapType>('posterior');
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const [showLabels, setShowLabels] = useState(false);
-  const [use3DMap, setUse3DMap] = useState(true); // Toggle between 2D canvas and 3D map
+  const [use3DMap, setUse3DMap] = useState(true);
+
+  // Generate 3D entities for demonstration
+  const mapBounds = {
+    north: 40.7829, south: 40.7489, east: -73.9441, west: -73.9901
+  };
+  const infrastructure = generateSampleInfrastructure(grid, mapBounds);
+  const { aircraft, flightPaths } = generateSampleAircraft(mapBounds); // Toggle between 2D canvas and 3D map
 
   // Handle recon action
   const handleRecon = async (x: number, y: number, sensor: SensorType) => {
@@ -215,21 +223,25 @@ export default function GamePage() {
           {/* Map canvas area */}
           <div className="flex-1 m-5 mt-3">
             <div className="tactical-card h-full p-3">
-              {use3DMap ? (
-                <MapScene
-                  grid={grid}
-                  config={config}
-                  viewMode={activeLayer}
-                  showLabels={showLabels}
-                  onCellClick={(x, y) => {
-                    setSelectedCell({ x, y });
-                    handleRecon(x, y, selectedSensor);
-                  }}
-                  onCellHover={(x, y) => {
-                    setSelectedCell({ x, y });
-                  }}
-                />
-              ) : (
+                              {use3DMap ? (
+                  <MapScene
+                    grid={grid}
+                    config={config}
+                    viewMode={activeLayer}
+                    showLabels={showLabels}
+                    onCellClick={(x, y) => {
+                      setSelectedCell({ x, y });
+                      handleRecon(x, y, selectedSensor);
+                    }}
+                    onCellHover={(x, y) => {
+                      setSelectedCell({ x, y });
+                    }}
+                    bounds={mapBounds}
+                    infrastructure={infrastructure}
+                    aircraft={aircraft}
+                    flightPaths={flightPaths}
+                  />
+                ) : (
                 <GameCanvas 
                   selectedSensor={selectedSensor}
                   onSensorChange={setSelectedSensor}

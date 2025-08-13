@@ -4,9 +4,9 @@ import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react'
 import DeckGL from '@deck.gl/react';
 import { MapView } from '@deck.gl/core';
 import { TerrainLayer } from '@deck.gl/geo-layers';
-import { ScatterplotLayer } from '@deck.gl/layers';
+import { ScatterplotLayer, PathLayer } from '@deck.gl/layers';
 import { Map as ReactMapGL } from 'react-map-gl/maplibre';
-import { HeatmapType } from '@/lib/types';
+import { HeatmapType, InfrastructureEntity, AircraftEntity, FlightPath } from '@/lib/types';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 // Types for our game integration
@@ -49,6 +49,11 @@ interface MapSceneProps {
     east: number;
     west: number;
   };
+  
+  // 3D entity data
+  infrastructure?: InfrastructureEntity[];
+  aircraft?: AircraftEntity[];
+  flightPaths?: FlightPath[];
 }
 
 // Default tactical area bounds (can be customized)
@@ -68,7 +73,10 @@ export default function MapScene({
   showLabels,
   onCellClick,
   onCellHover,
-  bounds = DEFAULT_BOUNDS
+  bounds = DEFAULT_BOUNDS,
+  infrastructure = [],
+  aircraft = [],
+  flightPaths = []
 }: MapSceneProps) {
   // Refs for ResizeObserver and DPR handling
   const containerRef = useRef<HTMLDivElement>(null);
@@ -162,6 +170,9 @@ export default function MapScene({
 
   const scaleBarData = getScaleBarData();
 
+  // Note: 3D models will be implemented in future iteration
+  // Currently using enhanced ScatterplotLayer for infrastructure and aircraft
+
 
 
   // Create data for deck.gl layers
@@ -245,6 +256,15 @@ export default function MapScene({
     return cellData;
   }, [grid, viewMode, config.showTruthOverlay, getGridPosition, getRadiusForZoom, viewState.zoom]);
 
+  // Generate 3D flight path data
+  const flightPathData = useMemo(() => {
+    return flightPaths.map(path => ({
+      path: path.waypoints.map(wp => wp.position),
+      color: [85, 227, 255, 180], // Cyan color with transparency
+      width: 15 // meters
+    }));
+  }, [flightPaths]);
+
   // Deck.gl layers
   const layers = useMemo(() => [
     // Terrain layer for 3D elevation
@@ -305,8 +325,103 @@ export default function MapScene({
           onCellHover(info.object.gridX, info.object.gridY);
         }
       }
-    })
-  ], [layerData, viewMode, config.showTruthOverlay, showLabels, onCellClick, onCellHover, devicePixelRatio, viewState.zoom]);
+    }),
+
+    // 3D Infrastructure placeholders (using ScatterplotLayer for now)
+    new ScatterplotLayer({
+      id: 'infrastructure',
+      data: infrastructure,
+      pickable: true,
+      opacity: 0.9,
+      stroked: true,
+      filled: true,
+      radiusScale: 1,
+      radiusUnits: 'meters',
+      radiusMinPixels: Math.ceil(8 * devicePixelRatio),
+      radiusMaxPixels: Math.ceil(120 * devicePixelRatio),
+      lineWidthScale: 1,
+      lineWidthUnits: 'meters',
+      lineWidthMinPixels: Math.ceil(2 * devicePixelRatio),
+      getPosition: (d: InfrastructureEntity) => d.position,
+      getRadius: (d: InfrastructureEntity) => {
+        // Different sizes for different infrastructure types
+        const baseSizes = { tower: 80, dome: 120, building: 100 };
+        return baseSizes[d.type] * d.scale;
+      },
+      getFillColor: (d: InfrastructureEntity): [number, number, number, number] => {
+        if (d.isDestroyed) return [255, 107, 107, 200]; // Red if destroyed
+        // Different colors for different types
+        const colors: Record<string, [number, number, number, number]> = {
+          tower: [150, 180, 200, 255],    // Gray-blue
+          dome: [200, 150, 180, 255],     // Purple-ish
+          building: [180, 200, 150, 255]  // Green-ish
+        };
+        return colors[d.type];
+      },
+      getLineColor: [255, 255, 255, 180],
+      getLineWidth: 8,
+      updateTriggers: {
+        getFillColor: infrastructure.map(i => `${i.type}-${i.isDestroyed}`),
+        getRadius: infrastructure.map(i => `${i.type}-${i.scale}`)
+      }
+    }),
+
+    // 3D Aircraft placeholders (using ScatterplotLayer with orientation indicators)
+    new ScatterplotLayer({
+      id: 'aircraft',
+      data: aircraft,
+      pickable: true,
+      opacity: 0.95,
+      stroked: true,
+      filled: true,
+      radiusScale: 1,
+      radiusUnits: 'meters',
+      radiusMinPixels: Math.ceil(6 * devicePixelRatio),
+      radiusMaxPixels: Math.ceil(80 * devicePixelRatio),
+      lineWidthScale: 1,
+      lineWidthUnits: 'meters',
+      lineWidthMinPixels: Math.ceil(2 * devicePixelRatio),
+      getPosition: (d: AircraftEntity) => d.position,
+      getRadius: (d: AircraftEntity) => {
+        // Scale by altitude - higher aircraft appear larger
+        const baseRadius = 60;
+        const altitudeScale = Math.max(0.5, Math.min(2.0, d.altitude / 2000));
+        return baseRadius * altitudeScale;
+      },
+      getFillColor: (d: AircraftEntity): [number, number, number, number] => {
+        if (d.isHostile) {
+          return [255, 107, 107, 255]; // Red for hostile
+        } else {
+          return [85, 227, 255, 255]; // Cyan for friendly
+        }
+      },
+      getLineColor: (d: AircraftEntity): [number, number, number, number] => {
+        return d.isHostile ? [255, 255, 255, 200] : [85, 227, 255, 200]; // Cyan rim for friendly
+      },
+      getLineWidth: 12, // Thicker outline for rim light effect
+      updateTriggers: {
+        getPosition: aircraft.map(a => `${a.position[0]}-${a.position[1]}-${a.position[2]}`),
+        getRadius: aircraft.map(a => a.altitude),
+        getFillColor: aircraft.map(a => a.isHostile),
+        getLineColor: aircraft.map(a => a.isHostile)
+      }
+    }),
+
+    // 3D Flight paths
+    ...(flightPathData.length > 0 ? [new PathLayer({
+      id: 'flight-paths',
+      data: flightPathData,
+      pickable: false,
+      getPath: (d: { path: [number, number, number][] }): [number, number, number][] => d.path,
+      getColor: (d: { color: [number, number, number, number] }): [number, number, number, number] => d.color,
+      getWidth: (d: { width: number }): number => d.width,
+      widthUnits: 'meters',
+      opacity: 0.7,
+      capRounded: true,
+      jointRounded: true,
+      billboard: false // Keep 3D
+    })] : [])
+  ], [layerData, viewMode, config.showTruthOverlay, showLabels, onCellClick, onCellHover, devicePixelRatio, viewState.zoom, infrastructure, aircraft, flightPathData, bounds]);
 
   // View configuration
   const views = useMemo(() => [

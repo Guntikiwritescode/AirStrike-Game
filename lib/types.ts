@@ -217,10 +217,53 @@ export interface GameRunExport {
     infraPriorField: number[][];
   };
   
+  // 3D entities for rendering
+  entities: {
+    infrastructure: InfrastructureEntity[];
+    aircraft: AircraftEntity[];
+    flightPaths: FlightPath[];
+  };
+  
   // Performance metrics
   performanceMetrics: {
     totalComputationTime: number;
     workerCacheHitRate: number;
     averageDecisionTime: number;
   };
+}
+
+// 3D Entity Types for Infrastructure and Aircraft
+export interface InfrastructureEntity {
+  id: string;
+  type: 'tower' | 'dome' | 'building';
+  position: [number, number, number]; // [lng, lat, altitude]
+  rotation: [number, number, number]; // [pitch, yaw, roll] in radians
+  scale: number;
+  isDestroyed: boolean;
+  gridX: number;
+  gridY: number;
+}
+
+export interface AircraftEntity {
+  id: string;
+  type: 'fighter' | 'drone' | 'transport';
+  position: [number, number, number]; // [lng, lat, altitude]
+  heading: number; // radians
+  speed: number; // m/s
+  altitude: number; // meters above ground
+  isHostile: boolean;
+  flightPathId?: string;
+}
+
+export interface FlightPath {
+  id: string;
+  waypoints: FlightWaypoint[];
+  isActive: boolean;
+  aircraftId?: string;
+}
+
+export interface FlightWaypoint {
+  position: [number, number, number]; // [lng, lat, altitude]
+  timestamp: number;
+  speed: number;
 }
