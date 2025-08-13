@@ -98,9 +98,9 @@ export default function CanvasOverlay({
     onPointerEvent(event.nativeEvent, x, y);
   }, [onPointerEvent]);
 
-  // Handle hover with throttling
+  // Handle hover with throttling and hit testing
   const handlePointerMove = useCallback((event: React.PointerEvent) => {
-    if (!canvasRef.current || !onHover) return;
+    if (!canvasRef.current || !rendererRef.current) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
     const x = event.clientX - rect.left;
@@ -110,7 +110,18 @@ export default function CanvasOverlay({
     const now = performance.now();
     const lastCall = (handlePointerMove as typeof handlePointerMove & { lastCall?: number }).lastCall || 0;
     if (now - lastCall > 16) {
-      onHover(x, y);
+      // Perform hit testing
+      const hitResult = rendererRef.current.hitTest({ x, y });
+      
+      if (onHover) {
+        onHover(x, y);
+      }
+      
+      // Update cursor based on hit result
+      if (canvasRef.current) {
+        canvasRef.current.style.cursor = hitResult.hit ? 'pointer' : 'crosshair';
+      }
+      
       (handlePointerMove as typeof handlePointerMove & { lastCall?: number }).lastCall = now;
     }
   }, [onHover]);

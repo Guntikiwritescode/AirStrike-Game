@@ -1,13 +1,25 @@
-import { CanvasLayers, DrawableGlyph, DrawablePath, DrawableText, RenderConfig } from './types';
+import { CanvasLayers, DrawableGlyph, DrawablePath, DrawableText, RenderConfig, Point, HitTestResult } from './types';
+import { QuadTree } from './quadtree';
+import { getAnimatedDashOffset } from './drawing-utils';
 
 export class CanvasRenderer {
   private ctx: CanvasRenderingContext2D;
   private config: RenderConfig;
   private viewTransform = { x: 0, y: 0, scale: 1 };
+  private quadTree: QuadTree;
+  private lastFrameTime = 0;
 
   constructor(ctx: CanvasRenderingContext2D, config: RenderConfig) {
     this.ctx = ctx;
     this.config = config;
+    
+    // Initialize quadtree for hit testing
+    this.quadTree = new QuadTree({
+      x: 0,
+      y: 0,
+      width: config.width,
+      height: config.height
+    });
     
     // Setup context defaults for crisp rendering
     this.ctx.imageSmoothingEnabled = false;
@@ -15,13 +27,17 @@ export class CanvasRenderer {
     this.ctx.textBaseline = 'middle';
   }
 
-  public render(layers: CanvasLayers): void {
+  public render(layers: CanvasLayers, timestamp: number = performance.now()): void {
     this.clear();
+    this.lastFrameTime = timestamp;
+    
+    // Clear and rebuild quadtree for this frame
+    this.quadTree.clear();
     
     // Render layers in order (back to front)
     this.renderHeatmap(layers.heatmap);
     this.renderGrid(layers.grid);
-    this.renderBoundaries(layers.boundaries);
+    this.renderBoundaries(layers.boundaries, timestamp);
     this.renderTracks(layers.tracks);
     this.renderOverlays(layers.overlays);
   }
@@ -81,7 +97,7 @@ export class CanvasRenderer {
     this.ctx.restore();
   }
 
-  private renderBoundaries(boundaries?: DrawablePath[]): void {
+  private renderBoundaries(boundaries?: DrawablePath[], timestamp?: number): void {
     if (!boundaries || boundaries.length === 0) return;
 
     this.ctx.save();
@@ -89,21 +105,32 @@ export class CanvasRenderer {
     boundaries.forEach(boundary => {
       if (boundary.points.length < 2) return;
 
+      // Add to quadtree for hit testing
+      if (boundary.points.length >= 2) {
+        const bounds = this.getBoundingBox(boundary.points);
+        const drawable = {
+          ...boundary,
+          bounds,
+          type: 'boundary' as const
+        };
+        this.quadTree.insert(drawable);
+      }
+
       this.ctx.strokeStyle = boundary.color || '#FF6B6B';
       this.ctx.lineWidth = boundary.width || 2;
 
-      if (boundary.dashed) {
+      if (boundary.dashed && timestamp) {
         this.ctx.setLineDash([6, 6]);
-        this.ctx.lineDashOffset = boundary.animatedOffset || 0;
+        this.ctx.lineDashOffset = getAnimatedDashOffset(timestamp, 1);
       }
 
       this.ctx.beginPath();
       const firstPoint = boundary.points[0];
-      this.ctx.moveTo(firstPoint.x, firstPoint.y);
+      this.ctx.moveTo(Math.round(firstPoint.x) + 0.5, Math.round(firstPoint.y) + 0.5);
 
       for (let i = 1; i < boundary.points.length; i++) {
         const point = boundary.points[i];
-        this.ctx.lineTo(point.x, point.y);
+        this.ctx.lineTo(Math.round(point.x) + 0.5, Math.round(point.y) + 0.5);
       }
 
       if (boundary.closed) {
@@ -123,6 +150,21 @@ export class CanvasRenderer {
     this.ctx.save();
 
     tracks.forEach(track => {
+      // Add to quadtree for hit testing
+      const size = track.size || 12;
+      const bounds = {
+        x: track.x - size/2,
+        y: track.y - size/2,
+        width: size,
+        height: size
+      };
+      const drawable = {
+        ...track,
+        bounds,
+        type: 'track' as const
+      };
+      this.quadTree.insert(drawable);
+
       this.ctx.save();
       this.ctx.translate(track.x, track.y);
       
@@ -239,6 +281,36 @@ export class CanvasRenderer {
     return {
       x: worldX * this.viewTransform.scale + this.viewTransform.x,
       y: worldY * this.viewTransform.scale + this.viewTransform.y
+    };
+  }
+
+  public hitTest(screenPoint: Point): HitTestResult {
+    const worldPoint = this.screenToWorld(screenPoint.x, screenPoint.y);
+    return this.quadTree.hitTest(worldPoint, 10); // 10px tolerance
+  }
+
+  private getBoundingBox(points: Point[]): { x: number; y: number; width: number; height: number } {
+    if (points.length === 0) {
+      return { x: 0, y: 0, width: 0, height: 0 };
+    }
+
+    let minX = points[0].x;
+    let maxX = points[0].x;
+    let minY = points[0].y;
+    let maxY = points[0].y;
+
+    for (let i = 1; i < points.length; i++) {
+      minX = Math.min(minX, points[i].x);
+      maxX = Math.max(maxX, points[i].x);
+      minY = Math.min(minY, points[i].y);
+      maxY = Math.max(maxY, points[i].y);
+    }
+
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY
     };
   }
 }
