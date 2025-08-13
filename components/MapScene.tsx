@@ -4,12 +4,15 @@ import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react'
 import DeckGL from '@deck.gl/react';
 import { MapView } from '@deck.gl/core';
 import { TerrainLayer } from '@deck.gl/geo-layers';
-import { ScatterplotLayer, PathLayer, PolygonLayer } from '@deck.gl/layers';
+import { ScatterplotLayer, PathLayer, PolygonLayer, SimpleMeshLayer } from '@deck.gl/layers';
 import { Map as ReactMapGL } from 'react-map-gl/maplibre';
 import { HeatmapType, InfrastructureEntity, AircraftEntity, FlightPath, TacticalBoundary, AreaOfInterest, SensorCone, GameCell } from '@/lib/types';
 import { processHeatmapData, heatmapTransitionManager, ProcessedHeatmapData } from '@/lib/heatmap-processor';
 import HeatmapLegend from '@/components/ui/HeatmapLegend';
 import { useThrottledCallback } from '@/lib/hooks/usePerfStats';
+import { createProceduralTerrain, createHeightMapDataURL } from '@/lib/terrain/procedural-terrain';
+import { generateInfrastructureMesh, createInfrastructureLayerData, generateTestInfrastructure, INFRASTRUCTURE_CONFIGS } from '@/lib/models/geometric-primitives';
+import { createAircraftLayerData, generateTestAircraft, AIRCRAFT_COLORS } from '@/lib/aircraft/vector-glyphs';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 // Types for our game integration
@@ -143,6 +146,47 @@ function MapScene({
     const animationId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animationId);
   }, []);
+
+  // Generate procedural terrain when external tiles fail
+  const proceduralTerrain = useMemo(() => {
+    return createProceduralTerrain({
+      seed: 42,
+      elevationScale: 300,
+      frequency: 0.0008,
+      octaves: 5,
+      persistence: 0.6
+    });
+  }, []);
+
+  // Generate fallback infrastructure using geometric primitives
+  const proceduralInfrastructure = useMemo(() => {
+    if (infrastructure.length === 0) {
+      return generateTestInfrastructure(bounds);
+    }
+    return infrastructure.map(infra => ({
+      id: infra.id,
+      type: infra.type as keyof typeof INFRASTRUCTURE_CONFIGS,
+      position: [infra.position[0], infra.position[1], infra.position[2]] as [number, number, number],
+      rotation: [0, Math.random() * Math.PI * 2, 0] as [number, number, number],
+      scale: 1
+    }));
+  }, [infrastructure, bounds]);
+
+  // Generate vector-based aircraft glyphs
+  const proceduralAircraft = useMemo(() => {
+    if (aircraft.length === 0) {
+      return generateTestAircraft(bounds);
+    }
+    return aircraft.map(ac => ({
+      id: ac.id,
+      position: [ac.position[0], ac.position[1], ac.position[2]] as [number, number, number],
+      heading: ac.heading || 0,
+      altitude: ac.position[2] || 1000,
+      type: ac.type as 'fighter' | 'bomber' | 'transport' | 'helicopter' | 'drone',
+      status: ac.status as 'friendly' | 'hostile' | 'unknown' | 'suspect',
+      speed: ac.speed || 400
+    }));
+  }, [aircraft, bounds]);
 
   // Process heatmap data when grid or viewMode changes
   const processedHeatmapData = useMemo(() => {
@@ -389,22 +433,32 @@ function MapScene({
 
   // Deck.gl layers
   const layers = useMemo(() => [
-    // Terrain layer for 3D elevation
+    // Terrain layer with procedural fallback
     new TerrainLayer({
       id: 'terrain',
       minZoom: 0,
       maxZoom: 23,
       strategy: 'no-overlap',
-      elevationData: 'https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png',
+      // Try external elevation data first, with procedural fallback
+      elevationData: process.env.NODE_ENV === 'development' 
+        ? createHeightMapDataURL(proceduralTerrain, bounds)
+        : 'https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png',
       texture: showLabels 
         ? 'https://tile.opentopomap.org/{z}/{x}/{y}.png'
         : undefined,
-      elevationDecoder: {
-        rScaler: 256,
-        gScaler: 1,
-        bScaler: 1 / 256,
-        offset: -32768
-      },
+      elevationDecoder: process.env.NODE_ENV === 'development'
+        ? {
+            rScaler: 1,
+            gScaler: 1,
+            bScaler: 1,
+            offset: 0
+          }
+        : {
+            rScaler: 256,
+            gScaler: 1,
+            bScaler: 1 / 256,
+            offset: -32768
+          },
       color: showLabels ? [255, 255, 255] : [40, 60, 80], // Tactical tint when no labels
       opacity: 0.8,
       wireframe: false
@@ -476,83 +530,54 @@ function MapScene({
       }
     }),
 
-    // 3D Infrastructure placeholders (using ScatterplotLayer for now)
-    new ScatterplotLayer({
-      id: 'infrastructure',
-      data: infrastructure,
-      pickable: true,
-      opacity: 0.9,
-      stroked: true,
-      filled: true,
-      radiusScale: 1,
-      radiusUnits: 'meters',
-      radiusMinPixels: Math.ceil(8 * devicePixelRatio),
-      radiusMaxPixels: Math.ceil(120 * devicePixelRatio),
-      lineWidthScale: 1,
-      lineWidthUnits: 'meters',
-      lineWidthMinPixels: Math.ceil(2 * devicePixelRatio),
-      getPosition: (d: InfrastructureEntity) => d.position,
-      getRadius: (d: InfrastructureEntity) => {
-        // Different sizes for different infrastructure types
-        const baseSizes = { tower: 80, dome: 120, building: 100 };
-        return baseSizes[d.type] * d.scale;
-      },
-      getFillColor: (d: InfrastructureEntity): [number, number, number, number] => {
-        if (d.isDestroyed) return [255, 107, 107, 200]; // Red if destroyed
-        // Different colors for different types
-        const colors: Record<string, [number, number, number, number]> = {
-          tower: [150, 180, 200, 255],    // Gray-blue
-          dome: [200, 150, 180, 255],     // Purple-ish
-          building: [180, 200, 150, 255]  // Green-ish
-        };
-        return colors[d.type];
-      },
-      getLineColor: [255, 255, 255, 180],
-      getLineWidth: 8,
-      updateTriggers: {
-        getFillColor: infrastructure.map(i => `${i.type}-${i.isDestroyed}`),
-        getRadius: infrastructure.map(i => `${i.type}-${i.scale}`)
-      }
+    // 3D Infrastructure using geometric primitives
+    ...createInfrastructureLayerData(proceduralInfrastructure).map((entity, index) => {
+      return new SimpleMeshLayer({
+        id: `infrastructure-${entity.id}`,
+        data: [entity],
+        mesh: entity.mesh,
+        pickable: true,
+        opacity: 0.9,
+        getPosition: (d: any) => d.position,
+        getOrientation: (d: any) => d.orientation,
+        getScale: (d: any) => d.scale,
+        getColor: (d: any) => d.color,
+        updateTriggers: {
+          getColor: entity.type,
+          getScale: entity.scale
+        }
+      });
     }),
 
-    // 3D Aircraft placeholders (using ScatterplotLayer with orientation indicators)
+    // Vector-based aircraft glyphs with tactical colors
     new ScatterplotLayer({
-      id: 'aircraft',
-      data: aircraft,
+      id: 'aircraft-glyphs',
+      data: createAircraftLayerData(proceduralAircraft),
       pickable: true,
       opacity: 0.95,
       stroked: true,
       filled: true,
       radiusScale: 1,
       radiusUnits: 'meters',
-      radiusMinPixels: Math.ceil(6 * devicePixelRatio),
-      radiusMaxPixels: Math.ceil(80 * devicePixelRatio),
+      radiusMinPixels: Math.ceil(8 * devicePixelRatio),
+      radiusMaxPixels: Math.ceil(100 * devicePixelRatio),
       lineWidthScale: 1,
       lineWidthUnits: 'meters',
       lineWidthMinPixels: Math.ceil(2 * devicePixelRatio),
-      getPosition: (d: AircraftEntity) => d.position,
-      getRadius: (d: AircraftEntity) => {
-        // Scale by altitude - higher aircraft appear larger
-        const baseRadius = 60;
-        const altitudeScale = Math.max(0.5, Math.min(2.0, d.altitude / 2000));
-        return baseRadius * altitudeScale;
-      },
-      getFillColor: (d: AircraftEntity): [number, number, number, number] => {
-        if (d.isHostile) {
-          return [255, 107, 107, 255]; // Red for hostile
-        } else {
-          return [85, 227, 255, 255]; // Cyan for friendly
-        }
-      },
-      getLineColor: (d: AircraftEntity): [number, number, number, number] => {
-        return d.isHostile ? [255, 255, 255, 200] : [85, 227, 255, 200]; // Cyan rim for friendly
-      },
-      getLineWidth: 12, // Thicker outline for rim light effect
+      getPosition: (d: any) => d.position,
+      getRadius: (d: any) => d.size,
+      getFillColor: (d: any) => d.color,
+      getLineColor: [0, 200, 255, 120], // Cyan rim light
+      getLineWidth: 3,
       updateTriggers: {
-        getPosition: aircraft.map(a => `${a.position[0]}-${a.position[1]}-${a.position[2]}`),
-        getRadius: aircraft.map(a => a.altitude),
-        getFillColor: aircraft.map(a => a.isHostile),
-        getLineColor: aircraft.map(a => a.isHostile)
+        getFillColor: [proceduralAircraft.map(a => a.status), animationTime],
+        getRadius: proceduralAircraft.map(a => a.altitude),
+        getPosition: [proceduralAircraft.map(a => a.heading), animationTime]
+      },
+      // Add rotation based on heading (approximated via animation)
+      parameters: {
+        depthTest: true,
+        blend: true
       }
     }),
 
@@ -657,7 +682,7 @@ function MapScene({
       jointRounded: true,
       billboard: false // Keep 3D
     })] : [])
-  ], [layerData, viewMode, config.showTruthOverlay, showLabels, onCellClick, onCellHover, devicePixelRatio, viewState.zoom, infrastructure, aircraft, flightPathData, bounds, boundaries, aois, sensorCones, animationTime, generateSensorConePolygon, currentHeatmapData]);
+  ], [layerData, viewMode, config.showTruthOverlay, showLabels, onCellClick, onCellHover, devicePixelRatio, viewState.zoom, infrastructure, aircraft, flightPathData, bounds, boundaries, aois, sensorCones, animationTime, generateSensorConePolygon, currentHeatmapData, proceduralInfrastructure, proceduralAircraft, proceduralTerrain]);
 
   // Helper functions for heatmap legend
   const getHeatmapTitle = (viewMode: HeatmapType): string => {
