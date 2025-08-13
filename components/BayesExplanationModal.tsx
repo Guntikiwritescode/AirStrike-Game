@@ -30,7 +30,10 @@ export default function BayesExplanationModal({
 
   // Calculate intermediate values for step-by-step explanation
   const priorOdds = probabilityToOdds(priorProbability);
-  const { effectiveTPR, effectiveFPR, result, confidence, contextSummary } = sensorReading;
+  const { effectiveTPR, effectiveFPR, result, confidence, contextFactors } = sensorReading;
+  
+  // Generate context summary from context factors
+  const contextSummary = `${contextFactors.terrain} terrain, ${contextFactors.lighting} light, ${contextFactors.weather} weather`;
   
   // Likelihood ratio calculation
   const likelihoodRatio = result 
@@ -228,7 +231,7 @@ export default function BayesExplanationModal({
             <div className="flex items-start gap-2">
               <Brain className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
               <div>
-                <strong>Bayes' Rule in Action:</strong> This is the core of Bayesian reasoning - 
+                                 <strong>Bayes&apos; Rule in Action:</strong> This is the core of Bayesian reasoning - 
                 combining our prior belief with new evidence to form an updated belief.
               </div>
             </div>
