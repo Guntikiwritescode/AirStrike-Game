@@ -201,6 +201,16 @@ export default function ControlPanel() {
             <span className="text-slate-400">Spatial Accuracy:</span>
             <span>{(analytics.spatialAccuracy * 100).toFixed(1)}%</span>
           </div>
+          
+          <div className="flex justify-between">
+            <span className="text-slate-400">Calibration Error:</span>
+            <span>{(analytics.calibrationError * 100).toFixed(1)}%</span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="text-slate-400">Predictions Made:</span>
+            <span>{analytics.totalPredictions}</span>
+          </div>
         </div>
       </div>
 

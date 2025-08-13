@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { GameState, GameConfig, GameCell, SensorType, ReconResult, GameEvent, TruthField } from '@/lib/types';
-import { SeededRNG, getDailySeed, generateRandomSeed } from '@/lib/rng';
+import { SeededRNG, getDailySeed, generateRandomSeed, createSubRNG } from '@/lib/rng';
 import { 
   generateTruthField, 
   createEnhancedGameCells, 
@@ -10,6 +10,18 @@ import {
   DEFAULT_SPATIAL_CONFIG,
   DEFAULT_BETA_PRIORS
 } from '@/lib/truth-generation';
+import {
+  simulateSensorReading,
+  generateCellContext,
+  calculateEffectivePerformance,
+  DEFAULT_CONTEXT
+} from '@/lib/sensors';
+import {
+  updatePosteriorOdds,
+  applySpatialDiffusion,
+  RunningCalibration,
+  DEFAULT_DIFFUSION_CONFIG
+} from '@/lib/inference';
 
 const DEFAULT_CONFIG: GameConfig = {
   gridSize: 14,
@@ -44,6 +56,9 @@ const createInitialTruthField = (size: number): TruthField => {
   };
 };
 
+// Global running calibration tracker
+const runningCalibration = new RunningCalibration();
+
 const createInitialState = (): GameState => ({
   grid: [],
   config: DEFAULT_CONFIG,
@@ -63,6 +78,11 @@ const createInitialState = (): GameState => ({
     evAccuracy: 0,
     truthCorrelation: 0,
     spatialAccuracy: 0,
+    calibrationError: 0,
+    reliability: 0,
+    resolution: 0,
+    uncertainty: 0,
+    totalPredictions: 0,
   },
   truthField: createInitialTruthField(DEFAULT_CONFIG.gridSize),
 });
@@ -133,7 +153,15 @@ export const useGameStore = create<GameStore>()(
           evAccuracy: 0,
           truthCorrelation: 0,
           spatialAccuracy: 0,
+          calibrationError: 0,
+          reliability: 0,
+          resolution: 0,
+          uncertainty: 0,
+          totalPredictions: 0,
         };
+        
+        // Reset calibration tracker
+        runningCalibration.reset();
       });
     },
     
@@ -185,51 +213,95 @@ export const useGameStore = create<GameStore>()(
         const cell = state.grid[y][x];
         if (!cell) return;
         
-        // Sensor configurations
-        const sensors = {
-          drone: { tpr: 0.85, fpr: 0.15, cost: 10 },
-          sigint: { tpr: 0.60, fpr: 0.05, cost: 15 },
-          ground: { tpr: 0.75, fpr: 0.10, cost: 20 },
-        };
+        // Generate context for this cell
+        const contextRng = createSubRNG(state.config.seed, `context-${x}-${y}`);
+        const context = generateCellContext(x, y, state.config.gridSize, contextRng);
         
-        const sensorConfig = sensors[sensor];
-        const cost = sensorConfig.cost;
+        // Calculate effective sensor performance
+        const performance = calculateEffectivePerformance(sensor, context);
         
-        if (state.remainingBudget < cost) return;
+        // Check if we can afford the recon
+        if (state.remainingBudget < performance.effectiveCost) return;
         
         // Generate sensor reading
-        const rng = new SeededRNG(`${state.config.seed}-recon-${state.currentTurn}-${x}-${y}-${sensor}`);
-        const hasHostile = cell.hasHostile;
-        const reading = hasHostile 
-          ? rng.bernoulli(sensorConfig.tpr) 
-          : rng.bernoulli(sensorConfig.fpr);
+        const readingRng = createSubRNG(
+          state.config.seed, 
+          `recon-${state.currentTurn}-${x}-${y}-${sensor}`
+        );
+        const sensorReading = simulateSensorReading(
+          sensor, 
+          cell.hasHostile, 
+          context, 
+          readingRng
+        );
         
-        // Update posterior using odds form
-        const prior = cell.posteriorProbability;
-        const priorOdds = prior / (1 - prior);
+        // Store prior probability for calibration tracking
+        const priorProbability = cell.posteriorProbability;
         
-        const likelihoodRatio = reading
-          ? sensorConfig.tpr / sensorConfig.fpr
-          : (1 - sensorConfig.tpr) / (1 - sensorConfig.fpr);
+        // Update posterior using Bayesian inference
+        const posteriorProbability = updatePosteriorOdds(priorProbability, sensorReading);
         
-        const posteriorOdds = priorOdds * likelihoodRatio;
-        const posterior = posteriorOdds / (1 + posteriorOdds);
+        // Apply spatial diffusion to neighboring cells
+        applySpatialDiffusion(state.grid, x, y, posteriorProbability, DEFAULT_DIFFUSION_CONFIG);
         
-        cell.posteriorProbability = Math.max(0.001, Math.min(0.999, posterior));
+        // Update the target cell
+        cell.posteriorProbability = posteriorProbability;
+        
+        // Add to recon history with full context
         cell.reconHistory.push({
           sensor,
-          result: reading,
+          result: sensorReading.result,
           turn: state.currentTurn,
           timestamp: Date.now(),
+          effectiveTPR: sensorReading.effectiveTPR,
+          effectiveFPR: sensorReading.effectiveFPR,
+          confidence: sensorReading.confidence,
+          contextSummary: performance.contextSummary,
+          priorProbability,
+          posteriorProbability,
         });
         
-        state.remainingBudget -= cost;
-        state.analytics.totalCost += cost;
+        // Update budget and costs
+        state.remainingBudget -= performance.effectiveCost;
+        state.analytics.totalCost += performance.effectiveCost;
         
+        // Track calibration - add prediction before we know the outcome
+        runningCalibration.addPrediction(posteriorProbability, cell.hasHostile);
+        state.analytics.totalPredictions++;
+        
+        // Update calibration metrics
+        const calibrationMetrics = runningCalibration.getMetrics();
+        state.analytics.brierScore = calibrationMetrics.brierScore;
+        state.analytics.logLoss = calibrationMetrics.logLoss;
+        state.analytics.calibrationError = calibrationMetrics.calibrationError;
+        state.analytics.reliability = calibrationMetrics.reliability;
+        state.analytics.resolution = calibrationMetrics.resolution;
+        state.analytics.uncertainty = calibrationMetrics.uncertainty;
+        
+        // Update calibration data for plotting
+        state.analytics.calibrationData = calibrationMetrics.buckets.map(bucket => ({
+          predicted: bucket.averagePrediction,
+          actual: bucket.actualRate,
+          count: bucket.count,
+        }));
+        
+        // Log event with enhanced data
         state.eventLog.push({
           turn: state.currentTurn,
           type: 'recon',
-          data: { x, y, sensor, reading, posterior: cell.posteriorProbability },
+          data: { 
+            x, 
+            y, 
+            sensor, 
+            reading: sensorReading.result,
+            posterior: posteriorProbability,
+            prior: priorProbability,
+            effectiveTPR: sensorReading.effectiveTPR,
+            effectiveFPR: sensorReading.effectiveFPR,
+            confidence: sensorReading.confidence,
+            context: performance.contextSummary,
+            cost: performance.effectiveCost,
+          },
           timestamp: Date.now(),
         });
         

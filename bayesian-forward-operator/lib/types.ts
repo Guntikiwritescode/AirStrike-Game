@@ -37,6 +37,12 @@ export interface ReconResult {
   result: boolean; // true = positive detection
   turn: number;
   timestamp: number;
+  effectiveTPR: number;        // Actual TPR used for this reading
+  effectiveFPR: number;        // Actual FPR used for this reading
+  confidence: number;          // Sensor confidence (0-1)
+  contextSummary: string;      // Description of context factors
+  priorProbability: number;    // Probability before this reading
+  posteriorProbability: number; // Probability after this reading
 }
 
 export interface SensorConfig {
@@ -112,6 +118,13 @@ export interface GameAnalytics {
   // Enhanced analytics for truth comparison
   truthCorrelation: number;        // Correlation between beliefs and truth
   spatialAccuracy: number;         // How well spatial patterns were detected
+  
+  // Advanced calibration metrics
+  calibrationError: number;        // Mean absolute calibration error
+  reliability: number;             // Reliability component of Brier score
+  resolution: number;              // Resolution component of Brier score
+  uncertainty: number;             // Uncertainty component of Brier score
+  totalPredictions: number;        // Total number of predictions made
 }
 
 export interface CalibrationPoint {

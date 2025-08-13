@@ -180,7 +180,7 @@ export default function AnalyticsPanel() {
   const renderCalibration = () => {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
           <div className="bg-slate-700 rounded p-4 text-center">
             <div className="text-2xl font-bold text-green-400">{analytics.hostilesNeutralized}</div>
             <div className="text-sm text-slate-400">Hostiles Neutralized</div>
@@ -200,21 +200,112 @@ export default function AnalyticsPanel() {
             <div className="text-2xl font-bold text-purple-400">{analytics.logLoss.toFixed(3)}</div>
             <div className="text-sm text-slate-400">Log Loss</div>
           </div>
+          
+          <div className="bg-slate-700 rounded p-4 text-center">
+            <div className="text-2xl font-bold text-yellow-400">{(analytics.calibrationError * 100).toFixed(1)}%</div>
+            <div className="text-sm text-slate-400">Calibration Error</div>
+          </div>
+          
+          <div className="bg-slate-700 rounded p-4 text-center">
+            <div className="text-2xl font-bold text-cyan-400">{analytics.totalPredictions}</div>
+            <div className="text-sm text-slate-400">Total Predictions</div>
+          </div>
+        </div>
+
+        {/* Brier Score Decomposition */}
+        <div className="bg-slate-700 rounded p-4">
+          <h4 className="font-medium mb-3">Brier Score Decomposition</h4>
+          <div className="grid grid-cols-3 gap-4 text-sm">
+            <div className="text-center">
+              <div className="text-lg font-bold text-red-400">{analytics.reliability.toFixed(3)}</div>
+              <div className="text-slate-400">Reliability</div>
+              <div className="text-xs text-slate-500">Calibration error</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-bold text-green-400">{analytics.resolution.toFixed(3)}</div>
+              <div className="text-slate-400">Resolution</div>
+              <div className="text-xs text-slate-500">Discrimination ability</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-bold text-blue-400">{analytics.uncertainty.toFixed(3)}</div>
+              <div className="text-slate-400">Uncertainty</div>
+              <div className="text-xs text-slate-500">Irreducible noise</div>
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-slate-400">
+            Brier = Reliability - Resolution + Uncertainty = {analytics.brierScore.toFixed(3)}
+          </div>
         </div>
 
         <div className="bg-slate-700 rounded p-4">
           <h4 className="font-medium mb-2">Decision Quality Metrics</h4>
           <div className="text-sm text-slate-300 space-y-1">
-            <div>• Calibration measures how well your probability estimates match reality</div>
-            <div>• Brier Score: Lower is better (0 = perfect, 1 = worst possible)</div>
-            <div>• Log Loss: Lower is better (penalizes confident wrong predictions heavily)</div>
-            <div>• Efficiency: Score per dollar spent</div>
+            <div>• <strong>Brier Score</strong>: Overall accuracy (lower is better, 0 = perfect)</div>
+            <div>• <strong>Reliability</strong>: How well calibrated you are (lower is better)</div>
+            <div>• <strong>Resolution</strong>: How well you discriminate (higher is better)</div>
+            <div>• <strong>Calibration Error</strong>: Mean absolute difference between predictions and outcomes</div>
+            <div>• <strong>Log Loss</strong>: Penalizes confident wrong predictions heavily</div>
           </div>
         </div>
 
-        {/* Placeholder for calibration plot */}
-        <div className="bg-slate-700 rounded p-4 h-40 flex items-center justify-center">
-          <div className="text-slate-400">Calibration Plot (To be implemented)</div>
+        {/* Calibration Curve */}
+        <div className="bg-slate-700 rounded p-4">
+          <h4 className="font-medium mb-3">Calibration Curve</h4>
+          <div className="h-48 flex items-center justify-center border border-slate-600 rounded">
+            {analytics.calibrationData.length > 0 ? (
+              <div className="w-full h-full relative">
+                {/* Perfect calibration diagonal line */}
+                <svg className="absolute inset-0 w-full h-full">
+                  <line
+                    x1="10%"
+                    y1="90%"
+                    x2="90%"
+                    y2="10%"
+                    stroke="#64748b"
+                    strokeWidth="1"
+                    strokeDasharray="5,5"
+                  />
+                  <text x="50%" y="95%" textAnchor="middle" className="text-xs fill-slate-400">
+                    Predicted Probability
+                  </text>
+                  <text x="5%" y="50%" textAnchor="middle" className="text-xs fill-slate-400" transform="rotate(-90 5% 50%)">
+                    Actual Rate
+                  </text>
+                </svg>
+                
+                {/* Calibration points */}
+                <svg className="absolute inset-0 w-full h-full">
+                  {analytics.calibrationData.map((point, idx) => {
+                    if (point.count === 0) return null;
+                    const x = 10 + (point.predicted * 80); // 10-90% range
+                    const y = 90 - (point.actual * 80);     // 90-10% range (inverted y)
+                    const size = Math.max(2, Math.min(8, point.count / 2)); // Size based on count
+                    
+                    return (
+                      <circle
+                        key={idx}
+                        cx={`${x}%`}
+                        cy={`${y}%`}
+                        r={size}
+                        fill="#3b82f6"
+                        opacity="0.7"
+                      />
+                    );
+                  })}
+                </svg>
+                
+                {/* Labels */}
+                <div className="absolute bottom-1 left-1 text-xs text-slate-400">
+                  Perfect calibration (diagonal)
+                </div>
+                <div className="absolute top-1 right-1 text-xs text-slate-400">
+                  {analytics.calibrationData.filter(p => p.count > 0).length} buckets
+                </div>
+              </div>
+            ) : (
+              <div className="text-slate-400">Make some predictions to see calibration curve</div>
+            )}
+          </div>
         </div>
       </div>
     );
