@@ -59,11 +59,14 @@ export function calculateStrikeEV(
 ): StrikeOutcome {
   if (grid.length === 0 || grid[0].length === 0) {
     return {
+      expectedHostilesHit: 0,
+      expectedInfraHit: 0,
+      infraHitProbability: 0,
       expectedValue: 0,
-      costOfStrike: config.costStrike,
-      collateralRisk: 0,
-      affectedCells: [],
-      violatesConstraint: false
+      expectedReward: 0,
+      expectedPenalty: 0,
+      cost: config.strikeCost,
+      affectedCells: []
     };
   }
   

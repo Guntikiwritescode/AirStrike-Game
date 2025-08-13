@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useGameStore } from '@/state/useGameStore';
 import { Play, Pause, RotateCcw, Calendar, Shuffle, Settings } from 'lucide-react';
+import { MathTooltip, InfoTooltip, MetricTooltip } from '@/components/ui/tooltip';
+import { ShortcutIndicator } from '@/components/KeyboardShortcuts';
 
 export default function ControlPanel() {
   const {

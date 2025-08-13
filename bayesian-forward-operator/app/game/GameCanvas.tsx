@@ -8,6 +8,8 @@ import { InlineLoading } from '@/components/LoadingOverlay';
 interface GameCanvasProps {
   selectedSensor: SensorType;
   onSensorChange: (sensor: SensorType) => void;
+  onCellClick?: (x: number, y: number) => void;
+  onCellRightClick?: (x: number, y: number) => void;
   onCellHighlight?: (x: number, y: number, type: 'primary' | 'alternative') => void;
   onClearHighlight?: () => void;
 }
@@ -15,6 +17,8 @@ interface GameCanvasProps {
 export default function GameCanvas({ 
   selectedSensor, 
   onSensorChange, 
+  onCellClick,
+  onCellRightClick,
   onCellHighlight, 
   onClearHighlight 
 }: GameCanvasProps) {
@@ -148,9 +152,14 @@ export default function GameCanvas({
     
     const pos = getCellPosition(event.clientX, event.clientY);
     if (pos) {
-      performRecon(pos.x, pos.y, selectedSensor);
+      if (onCellClick) {
+        onCellClick(pos.x, pos.y);
+      } else {
+        // Fallback to direct action if no callback provided
+        performRecon(pos.x, pos.y, selectedSensor);
+      }
     }
-  }, [gameStarted, getCellPosition, performRecon, selectedSensor]);
+  }, [gameStarted, getCellPosition, onCellClick, performRecon, selectedSensor]);
 
   const handleCanvasRightClick = useCallback((event: React.MouseEvent) => {
     event.preventDefault();
@@ -158,20 +167,25 @@ export default function GameCanvas({
     
     const pos = getCellPosition(event.clientX, event.clientY);
     if (pos) {
-      const validation = validateStrikeAction(pos.x, pos.y, 1);
-      
-      if (validation.requiresConfirmation) {
-        const confirmed = window.confirm(`Strike Warning: ${validation.reason}\n\nProceed anyway?`);
-        if (confirmed) {
-          performStrike(pos.x, pos.y, 1, true); // Force execute
-        }
-      } else if (validation.allowed) {
-        performStrike(pos.x, pos.y, 1, false);
+      if (onCellRightClick) {
+        onCellRightClick(pos.x, pos.y);
       } else {
-        alert(`Strike Blocked: ${validation.reason}`);
+        // Fallback to direct action if no callback provided
+        const validation = validateStrikeAction(pos.x, pos.y, 1);
+        
+        if (validation.requiresConfirmation) {
+          const confirmed = window.confirm(`Strike Warning: ${validation.reason}\n\nProceed anyway?`);
+          if (confirmed) {
+            performStrike(pos.x, pos.y, 1, true); // Force execute
+          }
+        } else if (validation.allowed) {
+          performStrike(pos.x, pos.y, 1, false);
+        } else {
+          alert(`Strike Blocked: ${validation.reason}`);
+        }
       }
     }
-  }, [gameStarted, getCellPosition, performStrike, validateStrikeAction]);
+  }, [gameStarted, getCellPosition, onCellRightClick, performStrike, validateStrikeAction]);
 
   const handleCanvasMouseMove = useCallback((event: React.MouseEvent) => {
     const pos = getCellPosition(event.clientX, event.clientY);
