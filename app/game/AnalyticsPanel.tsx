@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useGameStore } from '@/state/useGameStore';
-import { Download, TrendingUp, Target, AlertTriangle, Activity, FileText, Database } from 'lucide-react';
+import { VirtualizedLogList } from '@/components/ui/virtualized-log-list';
+import { Download, Target, AlertTriangle, Activity, FileText, Database } from 'lucide-react';
 import TimelineCharts from '@/components/TimelineCharts';
 
 export default function AnalyticsPanel() {
@@ -57,49 +58,54 @@ export default function AnalyticsPanel() {
   const renderEvents = () => {
     const recentEvents = eventLog.slice(-20).reverse();
 
-    return (
-      <div className="max-h-80 overflow-y-auto">
-        <div className="space-y-2">
-          {recentEvents.map((event, idx) => (
-            <div key={idx} className="bg-slate-700 rounded p-3 text-sm">
-              <div className="flex justify-between items-start">
-                <div className="flex items-center space-x-2">
-                  {event.type === 'recon' && <Target size={14} className="text-blue-400" />}
-                  {event.type === 'strike' && <Activity size={14} className="text-orange-400" />}
-                  {event.type === 'game_start' && <TrendingUp size={14} className="text-green-400" />}
-                  {event.type === 'game_end' && <AlertTriangle size={14} className="text-red-400" />}
-                  
-                  <span className="font-medium capitalize">{event.type}</span>
-                </div>
-                <span className="text-slate-400 text-xs">Turn {event.turn}</span>
-              </div>
-              
-              <div className="mt-1 text-slate-300">
-                                 {event.type === 'recon' && (
-                   <span>
-                     Cell ({event.data.x as number}, {event.data.y as number}) with {event.data.sensor as string} - 
-                     Result: {event.data.reading ? 'Positive' : 'Negative'} - 
-                     Updated probability: {((event.data.posterior as number) * 100).toFixed(1)}%
-                   </span>
-                 )}
-                 {event.type === 'strike' && (
-                   <span>
-                     Target ({event.data.x as number}, {event.data.y as number}) - 
-                     Hostiles: {event.data.hostilesHit as number}, Infrastructure: {event.data.infraHit as number} - 
-                     Points: {(event.data.points as number) > 0 ? '+' : ''}{event.data.points as number}
-                   </span>
-                 )}
-                 {event.type === 'game_start' && (
-                   <span>Game started with seed: {(event.data.seed as string).slice(0, 12)}...</span>
-                 )}
-                 {event.type === 'game_end' && (
-                   <span>Game ended with final score: {event.data.score as number}</span>
-                 )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+        return (
+      <VirtualizedLogList
+        logs={recentEvents.map((event, idx) => ({
+          id: `${event.type}-${event.turn}-${idx}`,
+          timestamp: event.timestamp,
+          type: event.type === 'recon' ? 'recon' : 
+                event.type === 'strike' ? 'strike' : 
+                event.type === 'game_end' ? 'error' :
+                event.type === 'game_start' ? 'info' : 'info',
+          message: (() => {
+            switch (event.type) {
+              case 'recon':
+                return `Recon at (${event.data.x}, ${event.data.y}) with ${event.data.sensor}`;
+              case 'strike':
+                return `Strike at (${event.data.x}, ${event.data.y})`;
+              case 'game_start':
+                return 'Game started';
+              case 'game_end':
+                return 'Game ended';
+              default:
+                return String(event.type).replace('_', ' ');
+            }
+          })(),
+          details: (() => {
+            switch (event.type) {
+              case 'recon':
+                return `Result: ${event.data.reading ? 'Positive' : 'Negative'} | Posterior: ${((event.data.posterior as number) * 100).toFixed(1)}%`;
+              case 'strike':
+                return `Hostiles: ${event.data.hostilesHit as number} | Infrastructure: ${event.data.infraHit as number} | Points: ${(event.data.points as number) > 0 ? '+' : ''}${event.data.points as number}`;
+              case 'game_start':
+                return `Seed: ${(event.data.seed as string).slice(0, 12)}...`;
+              case 'game_end':
+                return `Final score: ${event.data.score as number}`;
+              default:
+                return undefined;
+            }
+          })(),
+          location: (event.data.x !== undefined && event.data.y !== undefined) 
+            ? { x: event.data.x as number, y: event.data.y as number } 
+            : undefined
+        }))}
+        height={320}
+        onLogClick={(log) => {
+          if (log.location) {
+            console.log('Selected location:', log.location);
+          }
+        }}
+      />
     );
   };
 
