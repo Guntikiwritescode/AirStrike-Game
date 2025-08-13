@@ -32,6 +32,11 @@ import {
   PolicyRecommendation
 } from '@/lib/risk-analysis';
 import { getWorkerManager, LoadingState } from '@/lib/worker-manager';
+import { 
+  calculateTurnMetrics, 
+  generateGameRunExport, 
+  exportGameRun 
+} from '@/lib/analytics-export';
 
 const DEFAULT_CONFIG: GameConfig = {
   gridSize: 14,
@@ -93,6 +98,7 @@ const createInitialState = (): GameState => ({
     resolution: 0,
     uncertainty: 0,
     totalPredictions: 0,
+    timelineData: [],
   },
   truthField: createInitialTruthField(DEFAULT_CONFIG.gridSize),
   loadingState: {
@@ -135,6 +141,10 @@ interface GameStore extends GameState {
   
   // Loading state management
   updateLoadingState: (updates: Partial<LoadingState>) => void;
+  
+  // Turn tracking and export
+  recordTurnMetrics: () => void;
+  exportGameRun: () => void;
   
   // Persistence
   saveToLocalStorage: () => void;
@@ -188,6 +198,7 @@ export const useGameStore = create<GameStore>()(
           resolution: 0,
           uncertainty: 0,
           totalPredictions: 0,
+          timelineData: [],
         };
         
         // Reset calibration tracker
@@ -196,6 +207,8 @@ export const useGameStore = create<GameStore>()(
     },
     
     startGame: () => {
+      const { recordTurnMetrics } = get();
+      
       set((state) => {
         state.gameStarted = true;
         state.eventLog.push({
@@ -205,6 +218,9 @@ export const useGameStore = create<GameStore>()(
           timestamp: Date.now(),
         });
       });
+      
+      // Record initial metrics
+      setTimeout(() => recordTurnMetrics(), 100); // Small delay to ensure state is updated
     },
     
     endGame: () => {
@@ -400,12 +416,17 @@ export const useGameStore = create<GameStore>()(
     },
     
     nextTurn: () => {
+      const { recordTurnMetrics } = get();
+      
       set((state) => {
         state.currentTurn++;
         if (state.currentTurn >= state.config.maxTurns) {
           state.gameEnded = true;
         }
       });
+      
+      // Record metrics for the completed turn
+      recordTurnMetrics();
     },
     
     updateConfig: (configOverrides) => {
@@ -499,6 +520,56 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         state.loadingState = { ...state.loadingState, ...updates };
       });
+    },
+    
+    recordTurnMetrics: () => {
+      const state = get();
+      if (!state.gameStarted) return;
+      
+      // Get events from current turn
+      const currentTurnEvents = state.eventLog.filter(event => event.turn === state.currentTurn);
+      
+      // Calculate turn metrics
+      const turnMetrics = calculateTurnMetrics(
+        state.currentTurn,
+        state.grid,
+        state.config,
+        state.score,
+        state.remainingBudget,
+        state.analytics,
+        state.truthField,
+        currentTurnEvents
+      );
+      
+      set((state) => {
+        state.analytics.timelineData.push(turnMetrics);
+      });
+    },
+    
+    exportGameRun: () => {
+      const state = get();
+      
+      // Calculate performance metrics from worker manager
+      const workerManager = getWorkerManager();
+      const performanceMetrics = {
+        totalComputationTime: 0, // Could be tracked over time
+        workerCacheHitRate: 0.85, // Example - would be real data
+        averageDecisionTime: 2500 // Example - would be real data
+      };
+      
+      // Generate export data
+      const exportData = generateGameRunExport(
+        state.config,
+        state.analytics,
+        state.eventLog,
+        state.truthField,
+        state.score,
+        state.currentTurn,
+        performanceMetrics
+      );
+      
+      // Download files
+      exportGameRun(exportData);
     },
     
     saveToLocalStorage: () => {

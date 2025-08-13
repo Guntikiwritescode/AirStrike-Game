@@ -2,131 +2,57 @@
 
 import { useState } from 'react';
 import { useGameStore } from '@/state/useGameStore';
-import { Download, TrendingUp, Target, AlertTriangle, Activity } from 'lucide-react';
+import { Download, TrendingUp, Target, AlertTriangle, Activity, FileText, Database } from 'lucide-react';
+import TimelineCharts from '@/components/TimelineCharts';
 
 export default function AnalyticsPanel() {
   const {
     eventLog,
     analytics,
-    score,
-    config,
-    currentTurn,
+    exportGameRun
   } = useGameStore();
 
   const [activeTab, setActiveTab] = useState<'timeline' | 'events' | 'calibration'>('timeline');
 
-  const downloadGameData = (format: 'json' | 'csv') => {
-    const gameData = {
-      config,
-      analytics,
-      eventLog,
-      finalScore: score,
-      completedTurns: currentTurn,
-      timestamp: new Date().toISOString(),
-    };
-
-    let content: string;
-    let filename: string;
-    let mimeType: string;
-
-    if (format === 'json') {
-      content = JSON.stringify(gameData, null, 2);
-      filename = `bayesian-forward-operator-${Date.now()}.json`;
-      mimeType = 'application/json';
-    } else {
-      // Convert to CSV
-      const csvRows = [
-        ['Turn', 'Type', 'X', 'Y', 'Sensor', 'Result', 'Score Change', 'Budget Remaining'].join(','),
-                 ...eventLog.map(event => [
-           event.turn,
-           event.type,
-           (event.data?.x as number) || '',
-           (event.data?.y as number) || '',
-           (event.data?.sensor as string) || '',
-           event.data?.reading !== undefined ? (event.data.reading as boolean) : '',
-           (event.data?.points as number) || '',
-           (event.data?.budgetRemaining as number) || '',
-         ].join(','))
-      ];
-      content = csvRows.join('\n');
-      filename = `bayesian-forward-operator-${Date.now()}.csv`;
-      mimeType = 'text/csv';
-    }
-
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleExportRun = () => {
+    exportGameRun();
   };
 
   const renderTimeline = () => {
-    if (eventLog.length === 0) {
-      return <div className="text-slate-400 text-center py-8">No game data yet. Start playing to see analytics!</div>;
-    }
-
-    // Group events by turn
-    const eventsByTurn = eventLog.reduce((acc, event) => {
-      if (!acc[event.turn]) acc[event.turn] = [];
-      acc[event.turn].push(event);
-      return acc;
-    }, {} as Record<number, typeof eventLog>);
-
-    const maxTurn = Math.max(...Object.keys(eventsByTurn).map(Number));
-    const turns = Array.from({ length: maxTurn + 1 }, (_, i) => i);
-
     return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Score progression chart placeholder */}
-          <div className="md:col-span-4 h-32 bg-slate-700 rounded flex items-center justify-center">
-            <div className="text-slate-400">Score Timeline Chart (To be implemented)</div>
-          </div>
-        </div>
-
-        {/* Turn-by-turn breakdown */}
-        <div className="max-h-64 overflow-y-auto">
-          <div className="space-y-2">
-            {turns.map(turn => {
-              const turnEvents = eventsByTurn[turn] || [];
-              const reconEvents = turnEvents.filter(e => e.type === 'recon');
-              const strikeEvents = turnEvents.filter(e => e.type === 'strike');
-              
-              return (
-                <div key={turn} className="bg-slate-700 rounded p-3">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="font-medium">Turn {turn}</span>
-                    <div className="text-sm text-slate-400">
-                      {reconEvents.length} recons, {strikeEvents.length} strikes
-                    </div>
+      <div className="space-y-6">
+        {/* Timeline Charts */}
+        <TimelineCharts timelineData={analytics.timelineData} />
+        
+        {/* Recent Activity Summary */}
+        {eventLog.length > 0 && (
+          <div className="bg-slate-700 rounded-lg p-4">
+            <h4 className="font-medium mb-3 flex items-center">
+              <Activity className="w-4 h-4 mr-2" />
+              Recent Activity
+            </h4>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {eventLog.slice(-5).reverse().map((event, index) => (
+                <div key={index} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center">
+                    {event.type === 'recon' && <Target className="w-3 h-3 mr-2 text-blue-400" />}
+                    {event.type === 'strike' && <AlertTriangle className="w-3 h-3 mr-2 text-red-400" />}
+                    <span className="capitalize">{event.type}</span>
+                    {event.data && typeof event.data === 'object' && 'x' in event.data && (
+                      <span className="ml-2 text-slate-400">({(event.data as { x: number; y: number }).x}, {(event.data as { x: number; y: number }).y})</span>
+                    )}
                   </div>
-                  
-                  {turnEvents.length > 0 && (
-                    <div className="text-sm space-y-1">
-                                             {reconEvents.map((event, idx) => (
-                         <div key={idx} className="flex justify-between text-blue-400">
-                           <span>Recon ({event.data.x as number}, {event.data.y as number}) - {event.data.sensor as string}</span>
-                           <span>{event.data.reading ? '✓' : '✗'}</span>
-                         </div>
-                       ))}
-                                             {strikeEvents.map((event, idx) => (
-                         <div key={idx} className="flex justify-between text-orange-400">
-                           <span>Strike ({event.data.x as number}, {event.data.y as number})</span>
-                           <span>{(event.data.points as number) > 0 ? '+' : ''}{event.data.points as number}</span>
-                         </div>
-                       ))}
-                    </div>
-                  )}
+                  <span className="text-slate-400">Turn {event.turn}</span>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     );
   };
+
+  
 
   const renderEvents = () => {
     const recentEvents = eventLog.slice(-20).reverse();
@@ -317,18 +243,15 @@ export default function AnalyticsPanel() {
         <h2 className="text-xl font-semibold">Analytics & Timeline</h2>
         <div className="flex space-x-2">
           <button
-            onClick={() => downloadGameData('json')}
-            className="flex items-center space-x-1 px-3 py-1 bg-slate-600 hover:bg-slate-700 rounded text-sm"
+            onClick={handleExportRun}
+            className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-green-600 text-white rounded-lg hover:from-blue-700 hover:to-green-700 transition-all duration-200 shadow-lg"
           >
-            <Download size={14} />
-            <span>JSON</span>
-          </button>
-          <button
-            onClick={() => downloadGameData('csv')}
-            className="flex items-center space-x-1 px-3 py-1 bg-slate-600 hover:bg-slate-700 rounded text-sm"
-          >
-            <Download size={14} />
-            <span>CSV</span>
+            <Download className="w-4 h-4" />
+            <span>Export Run</span>
+            <div className="flex space-x-1 ml-2">
+              <FileText className="w-3 h-3" />
+              <Database className="w-3 h-3" />
+            </div>
           </button>
         </div>
       </div>

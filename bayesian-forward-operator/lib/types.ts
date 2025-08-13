@@ -135,6 +135,36 @@ export interface GameAnalytics {
   resolution: number;              // Resolution component of Brier score
   uncertainty: number;             // Uncertainty component of Brier score
   totalPredictions: number;        // Total number of predictions made
+  
+  // Per-turn timeline data
+  timelineData: TurnMetrics[];
+}
+
+export interface TurnMetrics {
+  turn: number;
+  timestamp: number;
+  score: number;
+  remainingBudget: number;
+  brierScore: number;
+  logLoss: number;
+  hostilesNeutralized: number;
+  infraHits: number;
+  totalCost: number;
+  // Decision quality metrics
+  bestEVAvailable: number;        // Best EV strike available this turn
+  chosenEV: number;               // EV of action actually taken (0 if no action)
+  evGap: number;                  // bestEVAvailable - chosenEV
+  infraRisk: number;              // Average P(infrastructure hit) across all cells
+  uncertaintyLevel: number;       // Average posterior uncertainty (entropy)
+  // Action summary
+  actionsThisTurn: {
+    recons: number;
+    strikes: number;
+    totalCost: number;
+  };
+  // Spatial analysis
+  beliefAccuracy: number;         // Correlation with truth at this point
+  spatialConcentration: number;   // How concentrated are the beliefs
 }
 
 export interface CalibrationPoint {
@@ -160,4 +190,37 @@ export interface PolicyAction {
   sensor?: SensorType;
   expectedUtility: number;
   risk: number;
+}
+
+export interface GameRunExport {
+  // Metadata
+  exportTimestamp: number;
+  gameConfig: GameConfig;
+  seed: string;
+  totalTurns: number;
+  finalScore: number;
+  
+  // Timeline data
+  turnMetrics: TurnMetrics[];
+  
+  // Event log
+  events: GameEvent[];
+  
+  // Final analytics
+  finalAnalytics: GameAnalytics;
+  
+  // Truth data (for analysis)
+  truthField: {
+    hostiles: boolean[][];
+    infrastructure: boolean[][];
+    hostilePriorField: number[][];
+    infraPriorField: number[][];
+  };
+  
+  // Performance metrics
+  performanceMetrics: {
+    totalComputationTime: number;
+    workerCacheHitRate: number;
+    averageDecisionTime: number;
+  };
 }
