@@ -49,12 +49,16 @@ export default {
       },
       
       fontSize: {
-        xs: ["12px", { lineHeight: "16px" }],
-        sm: ["13px", { lineHeight: "18px" }],
-        base: ["14px", { lineHeight: "20px" }],
-        lg: ["16px", { lineHeight: "24px" }],
-        xl: ["20px", { lineHeight: "28px" }],
-        "2xl": ["28px", { lineHeight: "36px" }],
+        xs: ["12px", { lineHeight: "16px" }],    // 12px as specified
+        sm: ["13px", { lineHeight: "18px" }],    // 13px as specified  
+        base: ["14px", { lineHeight: "20px" }],  // 14px as specified
+        lg: ["16px", { lineHeight: "24px" }],    // 16px as specified
+        xl: ["20px", { lineHeight: "28px" }],    // 20px as specified
+        "2xl": ["28px", { lineHeight: "36px" }], // 28px as specified
+        // Additional tactical sizes
+        stat: ["13px", { lineHeight: "18px", fontFamily: "var(--font-jetbrains)" }],
+        callsign: ["12px", { lineHeight: "16px", fontFamily: "var(--font-jetbrains)" }],
+        telemetry: ["11px", { lineHeight: "14px", fontFamily: "var(--font-jetbrains)" }],
       },
       
       boxShadow: {

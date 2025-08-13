@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { ThemeProvider } from '@/lib/contexts/theme-context';
+import { ToastProvider } from '@/components/ui/toast-provider';
 import "./globals.css";
 
 const inter = Inter({
@@ -30,7 +32,10 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} antialiased min-h-screen bg-bg text-ink font-sans`}
       >
-        {children}
+        <ThemeProvider>
+          {children}
+          <ToastProvider />
+        </ThemeProvider>
       </body>
     </html>
   );

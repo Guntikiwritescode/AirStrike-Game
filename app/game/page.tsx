@@ -7,16 +7,15 @@ import { getWorkerManager } from '@/lib/worker-manager';
 import { useKeyboardShortcuts, KeyboardShortcut } from '@/components/KeyboardShortcuts';
 import { SensorReading } from '@/lib/sensors';
 import GameCanvas from './GameCanvas';
-import ControlPanel from './ControlPanel';
 import AnalyticsPanel from './AnalyticsPanel';
-import PolicyPanel from './PolicyPanel';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import BayesExplanationModal from '@/components/BayesExplanationModal';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { SensorPicker } from '@/components/ui/sensor-picker';
 import { LayerToggle } from '@/components/ui/layer-toggle';
 import { DebugPanel } from '@/components/ui/debug-panel';
+import { AccordionControlPanel } from '@/components/ui/accordion-control-panel';
+import { tacticalToast } from '@/components/ui/toast-provider';
 import { HeatmapType } from '@/lib/types';
 
 export default function GamePage() {
@@ -26,11 +25,15 @@ export default function GamePage() {
     saveToLocalStorage,
     performRecon,
     performStrike,
+    startGame,
+    endGame,
+    resetGame,
     gameStarted,
     gameEnded,
     grid,
     config,
-    remainingBudget
+    remainingBudget,
+    currentTurn
   } = useGameStore();
   
   const [mounted, setMounted] = useState(false);
@@ -65,7 +68,10 @@ export default function GamePage() {
 
   // Handle recon action
   const handleRecon = async (x: number, y: number, sensor: SensorType) => {
-    if (!gameStarted || remainingBudget < config.reconCost) return;
+    if (!gameStarted || remainingBudget < config.reconCost) {
+      tacticalToast.constraint('Budget', remainingBudget, config.reconCost);
+      return;
+    }
     
     const prior = grid[y][x].posteriorProbability;
     await performRecon(x, y, sensor);
@@ -101,8 +107,12 @@ export default function GamePage() {
 
   // Handle strike action
   const handleStrike = async (x: number, y: number) => {
-    if (!gameStarted || remainingBudget < config.strikeCost) return;
+    if (!gameStarted || remainingBudget < config.strikeCost) {
+      tacticalToast.constraint('Budget', remainingBudget, config.strikeCost);
+      return;
+    }
     await performStrike(x, y, 1); // Radius of 1
+    tacticalToast.success('Strike executed', `Target: (${x.toString().padStart(2, '0')}, ${y.toString().padStart(2, '0')})`);
   };
 
   // Initialize game on mount
@@ -221,69 +231,36 @@ export default function GamePage() {
             </Button>
           </div>
 
-          {/* Panel content */}
+                    {/* Panel content */}
           {!rightPanelCollapsed && (
-            <div className="flex-1 overflow-y-auto">
-              {/* Mission section */}
-              <div className="p-3 border-b border-grid/40">
-                <ControlPanel />
-              </div>
-
-              {/* Sensors section */}
-              <div className="p-3 border-b border-grid/40">
-                <div className="panel-header">Sensors</div>
-                <SensorPicker
-                  selectedSensor={selectedSensor}
-                  onSensorChange={setSelectedSensor}
-                  showStats={true}
-                  disabled={!gameStarted}
-                />
-              </div>
-
-              {/* Actions section */}
-              <div className="p-3 border-b border-grid/40">
-                <div className="panel-header">Actions</div>
-                <div className="space-y-2">
-                  <Button
-                    onClick={() => selectedCell && handleRecon(selectedCell.x, selectedCell.y, selectedSensor)}
-                    disabled={!gameStarted || !selectedCell || remainingBudget < config.reconCost}
-                    className="w-full btn"
-                    size="sm"
-                  >
-                    <span className="font-mono">RECON</span>
-                    <span className="stat ml-auto">${config.reconCost}</span>
-                  </Button>
-                  <Button
-                    onClick={() => selectedCell && handleStrike(selectedCell.x, selectedCell.y)}
-                    disabled={!gameStarted || !selectedCell || remainingBudget < config.strikeCost}
-                    variant="destructive"
-                    className="w-full"
-                    size="sm"
-                  >
-                    <span className="font-mono">STRIKE</span>
-                    <span className="stat ml-auto">${config.strikeCost}</span>
-                  </Button>
-                </div>
-                {selectedCell && (
-                  <div className="stat mt-2 text-center">
-                    Target: ({selectedCell.x.toString().padStart(2, '0')}, {selectedCell.y.toString().padStart(2, '0')})
-                  </div>
-                )}
-              </div>
-
-              {/* Policy recommendations */}
-              <div className="p-3">
-                <div className="panel-header">Policy Recommendations</div>
-                <PolicyPanel 
-                  selectedSensor={selectedSensor}
-                                   onCellHighlight={(x, y) => {
-                   setSelectedCell({ x, y });
-                 }}
-                  onClearHighlight={() => {
-                    setSelectedCell(null);
-                  }}
-                />
-              </div>
+            <div className="flex-1 overflow-y-auto p-3">
+              <AccordionControlPanel
+                selectedSensor={selectedSensor}
+                onSensorChange={setSelectedSensor}
+                activeLayer={activeLayer}
+                onLayerChange={setActiveLayer}
+                selectedCell={selectedCell}
+                gameStarted={gameStarted}
+                remainingBudget={remainingBudget}
+                currentTurn={currentTurn}
+                onRecon={() => selectedCell && handleRecon(selectedCell.x, selectedCell.y, selectedSensor)}
+                onStrike={() => selectedCell && handleStrike(selectedCell.x, selectedCell.y)}
+                onStartGame={() => {
+                  startGame();
+                  tacticalToast.mission('started');
+                }}
+                onEndGame={() => {
+                  endGame();
+                  tacticalToast.mission('ended');
+                }}
+                onResetGame={() => {
+                  resetGame();
+                  initializeGame();
+                  tacticalToast.info('Mission reset');
+                }}
+                reconCost={config.reconCost}
+                strikeCost={config.strikeCost}
+              />
             </div>
           )}
         </div>
