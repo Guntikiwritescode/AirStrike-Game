@@ -99,3 +99,138 @@ canvas {
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
 }
+
+/* Professional micro-interactions and animations */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(85, 227, 255, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(85, 227, 255, 0.1); }
+}
+
+@keyframes subtleScale {
+  from { transform: scale(1.00); }
+  to { transform: scale(1.03); }
+}
+
+@keyframes slideInLeft {
+  from { transform: translateX(-20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideInUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Micro-hover effects */
+.micro-hover {
+  transition: all 160ms ease-out;
+  position: relative;
+}
+
+.micro-hover:hover {
+  transform: scale(1.03);
+}
+
+.micro-hover:hover::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(45deg, rgba(85, 227, 255, 0.1), rgba(85, 227, 255, 0.05));
+  z-index: -1;
+  opacity: 1;
+  transition: opacity 160ms ease-out;
+}
+
+.micro-hover::before {
+  opacity: 0;
+  transition: opacity 160ms ease-out;
+}
+
+/* Button micro-interactions */
+.btn-micro {
+  transition: all 140ms ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-micro:hover {
+  transform: translateY(-1px);
+}
+
+.btn-micro:active {
+  transform: translateY(0);
+  transition: all 80ms ease-out;
+}
+
+.btn-micro::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(85, 227, 255, 0.1);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 300ms ease-out, height 300ms ease-out;
+}
+
+.btn-micro:active::after {
+  width: 200%;
+  height: 200%;
+}
+
+/* Professional focus rings with 2px cyan */
+.focus-ring:focus,
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(85, 227, 255, 0.8);
+  transition: box-shadow 120ms ease-out;
+}
+
+/* Card hover effects */
+.card-hover {
+  transition: all 160ms ease-out;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+/* Input micro-interactions */
+.input-micro {
+  transition: all 140ms ease-out;
+}
+
+.input-micro:focus {
+  transform: scale(1.01);
+}
+
+/* Animation utility classes */
+.animate-slide-in-left {
+  animation: slideInLeft 300ms ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 300ms ease-out;
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 300ms ease-out;
+}
+
+/* Remove default button focus outline, use our custom focus rings */
+button:focus {
+  outline: none;
+}
+
+button:focus-visible {
+  outline: none;
+}

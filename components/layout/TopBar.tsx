@@ -75,7 +75,7 @@ export default function TopBar({
             type="text"
             value={seedInput}
             onChange={handleSeedChange}
-            className="w-16 h-6 bg-panel2 border border-grid/40 rounded text-xs font-mono text-ink px-2 focus:outline-none focus:border-accent/60"
+            className="w-16 h-6 bg-panel2 border border-grid/40 rounded text-xs font-mono text-ink px-2 input-micro focus-ring"
             placeholder="42"
           />
         </div>
@@ -93,7 +93,7 @@ export default function TopBar({
       <div className="flex items-center space-x-1">
         <button
           onClick={handleReset}
-          className="w-8 h-8 bg-panel2 hover:bg-grid/40 border border-grid/40 rounded flex items-center justify-center transition-colors"
+          className="w-8 h-8 bg-panel2 hover:bg-grid/40 border border-grid/40 rounded flex items-center justify-center micro-hover focus-ring"
           title="Reset to Turn 0"
         >
           <SkipBack className="w-3 h-3 text-muted" />
@@ -101,7 +101,7 @@ export default function TopBar({
 
         <button
           onClick={handlePlayPause}
-          className={`w-8 h-8 border border-grid/40 rounded flex items-center justify-center transition-colors ${
+          className={`w-8 h-8 border border-grid/40 rounded flex items-center justify-center micro-hover focus-ring ${
             isPlaying 
               ? 'bg-warn/20 hover:bg-warn/30 text-warn' 
               : 'bg-accent/20 hover:bg-accent/30 text-accent'
@@ -117,7 +117,7 @@ export default function TopBar({
 
         <button
           onClick={handleStep}
-          className="w-8 h-8 bg-panel2 hover:bg-grid/40 border border-grid/40 rounded flex items-center justify-center transition-colors"
+          className="w-8 h-8 bg-panel2 hover:bg-grid/40 border border-grid/40 rounded flex items-center justify-center micro-hover focus-ring"
           title="Step Forward One Turn"
         >
           <SkipForward className="w-3 h-3 text-muted" />
@@ -140,7 +140,7 @@ export default function TopBar({
             value={searchQuery}
             onChange={handleSearchChange}
             placeholder="Quick search..."
-            className="w-48 h-8 bg-panel2 border border-grid/40 rounded pl-8 pr-3 text-xs text-ink placeholder-muted/60 focus:outline-none focus:border-accent/60"
+            className="w-48 h-8 bg-panel2 border border-grid/40 rounded pl-8 pr-3 text-xs text-ink placeholder-muted/60 input-micro focus-ring"
           />
           <Search className="absolute left-2.5 top-2 w-3 h-3 text-muted/60" />
         </div>

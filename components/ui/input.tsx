@@ -8,7 +8,7 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
       type={type}
       data-slot="input"
       className={cn(
-        "tactical-input",
+        "tactical-input input-micro focus-ring",
         className
       )}
       {...props}

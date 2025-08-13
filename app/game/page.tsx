@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useGameStore } from '@/state/useGameStore';
 import { SensorType } from '@/lib/types';
 import { getWorkerManager } from '@/lib/worker-manager';
-import { useKeyboardShortcuts, KeyboardShortcut } from '@/components/KeyboardShortcuts';
+
 import { SensorReading } from '@/lib/sensors';
 import GameCanvas from './GameCanvas';
 import MapScene from '@/components/MapScene';
@@ -16,6 +16,7 @@ import { useThrottledCallback } from '@/lib/hooks/usePerfStats';
 import LatticeLayout from '@/components/layout/LatticeLayout';
 import { TrackEntity } from '@/components/layout/EntityPanel';
 import { LogEvent } from '@/components/layout/EventLog';
+import { useKeyboardShortcuts, KeyboardShortcutsHelp } from '@/lib/hooks/useKeyboardShortcuts';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import BayesExplanationModal from '@/components/BayesExplanationModal';
 import { ChevronUp, ChevronDown } from 'lucide-react';
@@ -82,6 +83,9 @@ export default function GamePage() {
   // Lattice layout state
   const [searchQuery, setSearchQuery] = useState('');
   const [events, setEvents] = useState<LogEvent[]>([]);
+  
+  // UI polish state
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
 
   // Generate 3D entities and tactical overlays for demonstration
   const mapBounds = {
@@ -219,6 +223,39 @@ export default function GamePage() {
     URL.revokeObjectURL(url);
   }, [events]);
 
+  // Keyboard shortcuts integration
+  useKeyboardShortcuts({
+    onSensorChange: setSelectedSensor,
+    onViewModeChange: setActiveLayer,
+    onStrikeMode: () => {
+      // Strike mode indication
+      const newEvent: LogEvent = {
+        id: `evt_${Date.now()}`,
+        timestamp: Date.now(),
+        type: 'user',
+        action: 'STRIKE_MODE_ACTIVATED',
+        details: 'Ready for kinetic engagement',
+        severity: 'warning'
+      };
+      setEvents(prev => [newEvent, ...prev]);
+    },
+    onToggleLabels: () => setShowLabels(!showLabels),
+    onToggleDebug: toggleDebug,
+    onToggleHelp: () => setShowKeyboardHelp(!showKeyboardHelp),
+    onPlayPause: () => {
+      if (gameStarted) {
+        endGame();
+      } else {
+        startGame();
+      }
+    },
+    onCancel: () => {
+      setSelectedCell(null);
+      setShowKeyboardHelp(false);
+    },
+    enabled: true
+  });
+
   // Handle recon action
   const handleRecon = async (x: number, y: number, sensor: SensorType) => {
     if (!gameStarted || remainingBudget < config.reconCost) {
@@ -306,22 +343,7 @@ export default function GamePage() {
     }
   }, [grid, mounted, saveToLocalStorage]);
 
-  // Keyboard shortcuts setup
-  const shortcuts: KeyboardShortcut[] = [
-    { key: '1', label: 'Drone Sensor', description: 'Switch to Drone sensor', action: () => setSelectedSensor('drone'), category: 'Sensors' },
-    { key: '2', label: 'SIGINT Sensor', description: 'Switch to SIGINT sensor', action: () => setSelectedSensor('sigint'), category: 'Sensors' },
-    { key: '3', label: 'Ground Sensor', description: 'Switch to Ground sensor', action: () => setSelectedSensor('ground'), category: 'Sensors' },
-    { key: 'e', label: 'Expected Value', description: 'Show Expected Value heatmap', action: () => setActiveLayer('expectedValue'), category: 'Layers' },
-    { key: 'v', label: 'Value of Information', description: 'Show Value of Information heatmap', action: () => setActiveLayer('valueOfInformation'), category: 'Layers' },
-    { key: 'r', label: 'Risk Layer', description: 'Show Risk heatmap', action: () => setActiveLayer('riskAverse'), category: 'Layers' },
-    { key: 'p', label: 'Posterior Layer', description: 'Show Posterior heatmap', action: () => setActiveLayer('posterior'), category: 'Layers' },
-    { key: 's', label: 'Strike', description: 'Strike selected cell', action: () => selectedCell && handleStrike(selectedCell.x, selectedCell.y), category: 'Actions', disabled: !selectedCell },
-    { key: 't', label: 'Toggle Timeline', description: 'Toggle timeline panel', action: () => setTimelineCollapsed(!timelineCollapsed), category: 'UI' },
-    { key: 'd', label: 'Debug Panel', description: 'Toggle performance debug panel', action: toggleDebug, category: 'Debug' },
-    { key: 'Escape', label: 'Clear Selection', description: 'Clear selection', action: () => setSelectedCell(null), category: 'Actions' }
-  ];
 
-  useKeyboardShortcuts(shortcuts);
 
   if (!mounted) {
     return (
@@ -523,9 +545,18 @@ export default function GamePage() {
       {/* Performance Debug Panel */}
       <DebugPanel isVisible={debugVisible} onToggle={toggleDebug} />
 
-      {/* Ethics footer */}
-      <div className="fixed bottom-2 left-2 text-xs text-muted/60 font-mono">
-        Fictional, abstract decision-making simulation. No real-world guidance.
+      {/* Keyboard Shortcuts Help */}
+      <KeyboardShortcutsHelp 
+        isOpen={showKeyboardHelp} 
+        onClose={() => setShowKeyboardHelp(false)} 
+      />
+
+      {/* Professional footer disclaimer */}
+      <div className="fixed bottom-4 left-4 text-xs text-muted/60 font-mono bg-panel/80 backdrop-blur-sm px-3 py-2 rounded-lg border border-grid/20">
+        <div className="flex items-center space-x-2">
+          <div className="w-2 h-2 bg-warn/60 rounded-full animate-pulse"></div>
+          <span>Fictional, abstract simulation • No real-world guidance</span>
+        </div>
       </div>
     </div>
   );
