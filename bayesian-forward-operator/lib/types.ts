@@ -97,6 +97,16 @@ export interface GameState {
   
   // Enhanced truth storage
   truthField: TruthField;
+  
+  // Loading state for Web Worker operations
+  loadingState: {
+    isLoading: boolean;
+    operation: string;
+    progress: number;
+    stage: string;
+    startTime?: number;
+    expectedDuration?: number;
+  };
 }
 
 export interface GameEvent {

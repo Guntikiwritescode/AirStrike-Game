@@ -29,13 +29,17 @@ export default function PolicyPanel({ selectedSensor, onCellHighlight, onClearHi
   // Update recommendations when game state changes
   useEffect(() => {
     if (gameStarted) {
-      try {
-        const newRecommendations = getPolicyRecommendations(selectedSensor, riskAversion);
-        setRecommendations(newRecommendations);
-      } catch (error) {
-        console.warn('Error getting policy recommendations:', error);
-        setRecommendations(null);
-      }
+      const updateRecommendations = async () => {
+        try {
+          const newRecommendations = await getPolicyRecommendations(selectedSensor, riskAversion);
+          setRecommendations(newRecommendations);
+        } catch (error) {
+          console.warn('Error getting policy recommendations:', error);
+          setRecommendations(null);
+        }
+      };
+      
+      updateRecommendations();
     }
   }, [gameStarted, currentTurn, remainingBudget, selectedSensor, riskAversion, getPolicyRecommendations]);
 

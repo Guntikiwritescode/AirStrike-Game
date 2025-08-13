@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useGameStore } from '@/state/useGameStore';
 import { SensorType, HeatmapType } from '@/lib/types';
+import { InlineLoading } from '@/components/LoadingOverlay';
 
 interface GameCanvasProps {
   selectedSensor: SensorType;
@@ -21,6 +22,8 @@ export default function GameCanvas({
   const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null);
   const [viewMode, setViewMode] = useState<HeatmapType>('posterior');
   const [highlightedCells, setHighlightedCells] = useState<Map<string, 'primary' | 'alternative'>>(new Map());
+  const [heatmapCache, setHeatmapCache] = useState<Map<string, { data: number[][]; timestamp: number }>>(new Map());
+  const [isLoadingHeatmap, setIsLoadingHeatmap] = useState(false);
 
   // Expose highlight functions to parent
   const handleCellHighlight = (x: number, y: number, type: 'primary' | 'alternative') => {
@@ -36,6 +39,63 @@ export default function GameCanvas({
     setHighlightedCells(new Map());
     onClearHighlight?.();
   };
+
+  // Load heatmap data asynchronously
+  const loadHeatmapData = useCallback(async (mode: HeatmapType) => {
+    if (['posterior', 'truth', 'priorField'].includes(mode)) return; // These don't need async loading
+    
+    setIsLoadingHeatmap(true);
+    const cacheKey = `${mode}-${selectedSensor}-${Date.now() - (Date.now() % 5000)}`;
+    
+    try {
+      let heatmapData: number[][];
+      
+      // Get functions from the store
+      const store = useGameStore.getState();
+      
+      switch (mode) {
+        case 'expectedValue':
+          heatmapData = await store.getEVHeatmap(1);
+          break;
+        case 'valueOfInformation':
+          heatmapData = await store.getVOIHeatmap(selectedSensor, 1);
+          break;
+        case 'riskAverse':
+          heatmapData = await store.getRiskAverseHeatmap(1, 0.5);
+          break;
+        case 'variance':
+          heatmapData = await store.getVarianceHeatmap(1);
+          break;
+        case 'lossRisk':
+          heatmapData = await store.getLossRiskHeatmap(1);
+          break;
+        default:
+          return;
+      }
+      
+      setHeatmapCache(prev => {
+        const newCache = new Map(prev);
+        newCache.set(cacheKey, { data: heatmapData, timestamp: Date.now() });
+        // Clean old entries (keep only last 5)
+        if (newCache.size > 5) {
+          const entries = Array.from(newCache.entries());
+          entries.sort((a, b) => b[1].timestamp - a[1].timestamp);
+          newCache.clear();
+          entries.slice(0, 5).forEach(([key, value]) => newCache.set(key, value));
+        }
+        return newCache;
+      });
+    } catch (error) {
+      console.error('Failed to load heatmap data:', error);
+    } finally {
+      setIsLoadingHeatmap(false);
+    }
+  }, [selectedSensor]);
+
+  // Load heatmap when view mode changes
+  useEffect(() => {
+    loadHeatmapData(viewMode);
+  }, [viewMode, loadHeatmapData]);
 
   // Expose these functions to parent via refs or callbacks
   useEffect(() => {
@@ -189,84 +249,41 @@ export default function GameCanvas({
             break;
             
           case 'expectedValue':
-            // Get EV heatmap and normalize
-            const evHeatmap = getEVHeatmap(1);
-            const evValue = evHeatmap[y][x];
-            const maxEV = Math.max(...evHeatmap.flat());
-            const minEV = Math.min(...evHeatmap.flat());
-            
-            if (maxEV > minEV) {
-              intensity = Math.max(0, (evValue - minEV) / (maxEV - minEV));
-            } else {
-              intensity = 0;
-            }
-            
-            showText = evValue > 0;
-            textValue = evValue > 0 ? `+${evValue.toFixed(0)}` : evValue < -10 ? evValue.toFixed(0) : '';
-            useSpecialColorScheme = true;
-            break;
-            
           case 'valueOfInformation':
-            // Get VOI heatmap and normalize
-            const voiHeatmap = getVOIHeatmap(selectedSensor, 1);
-            const voiValue = voiHeatmap[y][x];
-            const maxVOI = Math.max(...voiHeatmap.flat());
-            
-            if (maxVOI > 0) {
-              intensity = voiValue / maxVOI;
-            } else {
-              intensity = 0;
-            }
-            
-            showText = voiValue > 0;
-            textValue = voiValue > 0 ? `+${voiValue.toFixed(0)}` : '';
-            useSpecialColorScheme = true;
-            break;
-            
           case 'riskAverse':
-            // Get risk-averse utility heatmap and normalize
-            const riskHeatmap = getRiskAverseHeatmap(1, 0.5);
-            const riskValue = riskHeatmap[y][x];
-            const maxRisk = Math.max(...riskHeatmap.flat());
-            const minRisk = Math.min(...riskHeatmap.flat());
-            
-            if (maxRisk > minRisk) {
-              intensity = Math.max(0, (riskValue - minRisk) / (maxRisk - minRisk));
-            } else {
-              intensity = 0;
-            }
-            
-            showText = riskValue > 0;
-            textValue = riskValue > 0 ? `+${riskValue.toFixed(0)}` : riskValue < -10 ? riskValue.toFixed(0) : '';
-            useSpecialColorScheme = true;
-            break;
-            
           case 'variance':
-            // Get variance heatmap and normalize
-            const varianceHeatmap = getVarianceHeatmap(1);
-            const varianceValue = varianceHeatmap[y][x];
-            const maxVariance = Math.max(...varianceHeatmap.flat());
-            
-            if (maxVariance > 0) {
-              intensity = varianceValue / maxVariance;
-            } else {
-              intensity = 0;
-            }
-            
-            showText = varianceValue > 20;
-            textValue = varianceValue > 20 ? `σ${varianceValue.toFixed(0)}` : '';
-            useSpecialColorScheme = true;
-            break;
-            
           case 'lossRisk':
-            // Get loss risk heatmap
-            const lossHeatmap = getLossRiskHeatmap(1);
-            const lossValue = lossHeatmap[y][x];
-            intensity = lossValue; // Already a probability 0-1
+            // Use cached heatmap or fallback to posterior
+            const cacheKey = `${viewMode}-${selectedSensor}-${Date.now() - (Date.now() % 5000)}`; // 5-second cache
+            const cached = heatmapCache.get(cacheKey);
             
-            showText = lossValue > 0.3;
-            textValue = lossValue > 0.3 ? `${(lossValue * 100).toFixed(0)}%` : '';
-            useSpecialColorScheme = true;
+            if (cached && cached.data[y] && cached.data[y][x] !== undefined) {
+              const value = cached.data[y][x];
+              const flatValues = cached.data.flat();
+              const maxVal = Math.max(...flatValues);
+              const minVal = Math.min(...flatValues);
+              
+              if (maxVal > minVal) {
+                intensity = Math.max(0, (value - minVal) / (maxVal - minVal));
+              } else {
+                intensity = maxVal > 0 ? 1 : 0;
+              }
+              
+              showText = Math.abs(value) > 10 || (viewMode === 'lossRisk' && value > 0.3);
+              if (viewMode === 'lossRisk') {
+                textValue = value > 0.3 ? `${(value * 100).toFixed(0)}%` : '';
+              } else if (viewMode === 'variance') {
+                textValue = value > 20 ? `σ${value.toFixed(0)}` : '';
+              } else {
+                textValue = value > 0 ? `+${value.toFixed(0)}` : value < -10 ? value.toFixed(0) : '';
+              }
+              useSpecialColorScheme = true;
+            } else {
+              // Fallback to posterior while loading
+              intensity = cell.posteriorProbability;
+              showText = false;
+              textValue = '';
+            }
             break;
             
           default:
@@ -391,10 +408,11 @@ export default function GameCanvas({
           <button
             key={mode}
             onClick={() => setViewMode(mode)}
+            disabled={isLoadingHeatmap && !['posterior', 'truth', 'priorField'].includes(mode)}
             className={`px-3 py-1 text-sm rounded ${
               viewMode === mode
                 ? 'bg-green-600 text-white'
-                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                : 'bg-slate-700 text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed'
             }`}
           >
             {mode === 'posterior' ? 'Beliefs' : 
@@ -406,6 +424,14 @@ export default function GameCanvas({
              mode === 'lossRisk' ? 'Loss Risk' : 'Truth'}
           </button>
         ))}
+        
+        {isLoadingHeatmap && (
+          <InlineLoading 
+            isLoading={true} 
+            operation={`Loading ${viewMode} data...`} 
+            size="sm" 
+          />
+        )}
         
         {/* Developer truth overlay toggle */}
         {viewMode === 'truth' && (
@@ -537,21 +563,36 @@ export default function GameCanvas({
                          {viewMode === 'priorField' && (
                <span>Prior θ: {(grid[hoveredCell.y][hoveredCell.x].hostilePriorProbability * 100).toFixed(1)}%</span>
              )}
-             {viewMode === 'expectedValue' && (
-               <span>EV: {getEVHeatmap(1)[hoveredCell.y][hoveredCell.x].toFixed(0)} points</span>
-             )}
-             {viewMode === 'valueOfInformation' && (
-               <span>VOI: +{getVOIHeatmap(selectedSensor, 1)[hoveredCell.y][hoveredCell.x].toFixed(0)} points</span>
-             )}
-             {viewMode === 'riskAverse' && (
-               <span>Risk Utility: {getRiskAverseHeatmap(1, 0.5)[hoveredCell.y][hoveredCell.x].toFixed(0)} points</span>
-             )}
-             {viewMode === 'variance' && (
-               <span>Std Dev: {getVarianceHeatmap(1)[hoveredCell.y][hoveredCell.x].toFixed(0)} points</span>
-             )}
-             {viewMode === 'lossRisk' && (
-               <span>Loss Risk: {(getLossRiskHeatmap(1)[hoveredCell.y][hoveredCell.x] * 100).toFixed(0)}%</span>
-             )}
+             {viewMode === 'expectedValue' && (() => {
+               const cacheKey = `${viewMode}-${selectedSensor}-${Date.now() - (Date.now() % 5000)}`;
+               const cached = heatmapCache.get(cacheKey);
+               const value = cached?.data[hoveredCell.y]?.[hoveredCell.x];
+               return value !== undefined ? <span>EV: {value.toFixed(0)} points</span> : null;
+             })()}
+             {viewMode === 'valueOfInformation' && (() => {
+               const cacheKey = `${viewMode}-${selectedSensor}-${Date.now() - (Date.now() % 5000)}`;
+               const cached = heatmapCache.get(cacheKey);
+               const value = cached?.data[hoveredCell.y]?.[hoveredCell.x];
+               return value !== undefined ? <span>VOI: +{value.toFixed(0)} points</span> : null;
+             })()}
+             {viewMode === 'riskAverse' && (() => {
+               const cacheKey = `${viewMode}-${selectedSensor}-${Date.now() - (Date.now() % 5000)}`;
+               const cached = heatmapCache.get(cacheKey);
+               const value = cached?.data[hoveredCell.y]?.[hoveredCell.x];
+               return value !== undefined ? <span>Risk Utility: {value.toFixed(0)} points</span> : null;
+             })()}
+             {viewMode === 'variance' && (() => {
+               const cacheKey = `${viewMode}-${selectedSensor}-${Date.now() - (Date.now() % 5000)}`;
+               const cached = heatmapCache.get(cacheKey);
+               const value = cached?.data[hoveredCell.y]?.[hoveredCell.x];
+               return value !== undefined ? <span>Std Dev: {value.toFixed(0)} points</span> : null;
+             })()}
+             {viewMode === 'lossRisk' && (() => {
+               const cacheKey = `${viewMode}-${selectedSensor}-${Date.now() - (Date.now() % 5000)}`;
+               const cached = heatmapCache.get(cacheKey);
+               const value = cached?.data[hoveredCell.y]?.[hoveredCell.x];
+               return value !== undefined ? <span>Loss Risk: {(value * 100).toFixed(0)}%</span> : null;
+             })()}
              {viewMode === 'truth' && config.showTruthOverlay && (
                <>
                  <span>Truth: {grid[hoveredCell.y][hoveredCell.x].hasHostile ? 'Hostile' : 'Clear'}</span>

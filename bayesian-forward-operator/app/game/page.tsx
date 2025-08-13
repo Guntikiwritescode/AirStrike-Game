@@ -3,10 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useGameStore } from '@/state/useGameStore';
 import { SensorType } from '@/lib/types';
+import { getWorkerManager } from '@/lib/worker-manager';
 import GameCanvas from './GameCanvas';
 import ControlPanel from './ControlPanel';
 import AnalyticsPanel from './AnalyticsPanel';
 import PolicyPanel from './PolicyPanel';
+import LoadingOverlay from '@/components/LoadingOverlay';
 
 export default function GamePage() {
   const {
@@ -17,15 +19,30 @@ export default function GamePage() {
   
   const [mounted, setMounted] = useState(false);
   const [selectedSensor, setSelectedSensor] = useState<SensorType>('drone');
+  const [workerLoadingState, setWorkerLoadingState] = useState({
+    isLoading: false,
+    operation: '',
+    progress: 0,
+    stage: ''
+  });
 
   useEffect(() => {
     setMounted(true);
+    
+    // Initialize worker manager and subscribe to loading state
+    const workerManager = getWorkerManager();
+    const unsubscribe = workerManager.onLoadingStateChange(setWorkerLoadingState);
+    
     // Try to load saved game state
     const loaded = loadFromLocalStorage();
     if (!loaded) {
       // Initialize new game if no saved state
       initializeGame();
     }
+    
+    return () => {
+      unsubscribe();
+    };
   }, [loadFromLocalStorage, initializeGame]);
 
   useEffect(() => {
@@ -126,6 +143,9 @@ export default function GamePage() {
           </div>
         </div>
       </div>
+      
+      {/* Loading Overlay for Web Worker Operations */}
+      <LoadingOverlay loadingState={workerLoadingState} />
     </div>
   );
 }

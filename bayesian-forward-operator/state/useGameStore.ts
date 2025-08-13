@@ -25,19 +25,13 @@ import {
 import {
   calculateStrikeEV,
   validateStrike,
-  executeStrike,
-  generateEVHeatmap,
-  generateVOIHeatmap,
-  recommendAction
+  executeStrike
 } from '@/lib/decision-analysis';
 import {
-  generateRiskAverseHeatmap,
-  generateVarianceHeatmap,
-  generateLossRiskHeatmap,
-  getAllPolicyRecommendations,
   PolicyType,
   PolicyRecommendation
 } from '@/lib/risk-analysis';
+import { getWorkerManager, LoadingState } from '@/lib/worker-manager';
 
 const DEFAULT_CONFIG: GameConfig = {
   gridSize: 14,
@@ -101,6 +95,12 @@ const createInitialState = (): GameState => ({
     totalPredictions: 0,
   },
   truthField: createInitialTruthField(DEFAULT_CONFIG.gridSize),
+  loadingState: {
+    isLoading: false,
+    operation: '',
+    progress: 0,
+    stage: ''
+  },
 });
 
 interface GameStore extends GameState {
@@ -123,16 +123,18 @@ interface GameStore extends GameState {
   updateSpatialAnalytics: () => void;
   
   // Decision analysis
-  getEVHeatmap: (radius?: number) => number[][];
-  getVOIHeatmap: (sensor: SensorType, radius?: number) => number[][];
-  getRecommendation: (sensor: SensorType) => any;
+  getEVHeatmap: (radius?: number) => Promise<number[][]>;
+  getVOIHeatmap: (sensor: SensorType, radius?: number) => Promise<number[][]>;
   validateStrikeAction: (x: number, y: number, radius: number) => any;
   
   // Risk analysis
-  getRiskAverseHeatmap: (radius?: number, riskAversion?: number) => number[][];
-  getVarianceHeatmap: (radius?: number) => number[][];
-  getLossRiskHeatmap: (radius?: number) => number[][];
-  getPolicyRecommendations: (sensor: SensorType, riskAversion?: number) => Record<PolicyType, PolicyRecommendation>;
+  getRiskAverseHeatmap: (radius?: number, riskAversion?: number) => Promise<number[][]>;
+  getVarianceHeatmap: (radius?: number) => Promise<number[][]>;
+  getLossRiskHeatmap: (radius?: number) => Promise<number[][]>;
+  getPolicyRecommendations: (sensor: SensorType, riskAversion?: number) => Promise<Record<PolicyType, PolicyRecommendation>>;
+  
+  // Loading state management
+  updateLoadingState: (updates: Partial<LoadingState>) => void;
   
   // Persistence
   saveToLocalStorage: () => void;
@@ -433,19 +435,18 @@ export const useGameStore = create<GameStore>()(
       });
     },
     
-    getEVHeatmap: (radius = 1) => {
+    getEVHeatmap: async (radius = 1) => {
       const state = get();
-      return generateEVHeatmap(state.grid, radius, state.config);
+      const workerManager = getWorkerManager();
+      const result = await workerManager.generateEVHeatmap(state.grid, radius, state.config);
+      return result.result;
     },
     
-    getVOIHeatmap: (sensor: SensorType, radius = 1) => {
+    getVOIHeatmap: async (sensor: SensorType, radius = 1) => {
       const state = get();
-      return generateVOIHeatmap(state.grid, sensor, state.config, radius, state.config.seed);
-    },
-    
-    getRecommendation: (sensor: SensorType) => {
-      const state = get();
-      return recommendAction(state.grid, state.config, state.remainingBudget, state.currentTurn, sensor);
+      const workerManager = getWorkerManager();
+      const result = await workerManager.generateVOIHeatmap(state.grid, sensor, state.config, radius);
+      return result.result;
     },
     
     validateStrikeAction: (x: number, y: number, radius: number) => {
@@ -453,24 +454,37 @@ export const useGameStore = create<GameStore>()(
       return validateStrike(state.grid, x, y, radius, state.config);
     },
     
-    getRiskAverseHeatmap: (radius = 1, riskAversion = 0.5) => {
+    getRiskAverseHeatmap: async (radius = 1, riskAversion = 0.5) => {
       const state = get();
-      return generateRiskAverseHeatmap(state.grid, radius, state.config, riskAversion);
+      const workerManager = getWorkerManager();
+      const result = await workerManager.generateRiskAverseHeatmap(
+        state.grid, radius, state.config, riskAversion, 256
+      );
+      return result.result;
     },
     
-    getVarianceHeatmap: (radius = 1) => {
+    getVarianceHeatmap: async (radius = 1) => {
       const state = get();
-      return generateVarianceHeatmap(state.grid, radius, state.config);
+      const workerManager = getWorkerManager();
+      const result = await workerManager.generateVarianceHeatmap(
+        state.grid, radius, state.config, 256
+      );
+      return result.result;
     },
     
-    getLossRiskHeatmap: (radius = 1) => {
+    getLossRiskHeatmap: async (radius = 1) => {
       const state = get();
-      return generateLossRiskHeatmap(state.grid, radius, state.config);
+      const workerManager = getWorkerManager();
+      const result = await workerManager.generateLossRiskHeatmap(
+        state.grid, radius, state.config, 256
+      );
+      return result.result;
     },
     
-    getPolicyRecommendations: (sensor: SensorType, riskAversion = 0.5) => {
+    getPolicyRecommendations: async (sensor: SensorType, riskAversion = 0.5) => {
       const state = get();
-      return getAllPolicyRecommendations(
+      const workerManager = getWorkerManager();
+      const result = await workerManager.getPolicyRecommendations(
         state.grid, 
         state.config, 
         state.remainingBudget, 
@@ -478,6 +492,13 @@ export const useGameStore = create<GameStore>()(
         sensor, 
         riskAversion
       );
+      return result.result;
+    },
+    
+    updateLoadingState: (updates: Partial<LoadingState>) => {
+      set((state) => {
+        state.loadingState = { ...state.loadingState, ...updates };
+      });
     },
     
     saveToLocalStorage: () => {
