@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useGameStore } from '@/state/useGameStore';
 import { SensorType } from '@/lib/types';
 import { getWorkerManager } from '@/lib/worker-manager';
@@ -13,6 +13,9 @@ import { generateSampleBoundaries, generateSampleAOIs, generateSampleSensorCones
 import AnalyticsPanel from './AnalyticsPanel';
 import DebugPanel, { useDebugPanelToggle } from '@/components/DebugPanel';
 import { useThrottledCallback } from '@/lib/hooks/usePerfStats';
+import LatticeLayout from '@/components/layout/LatticeLayout';
+import { TrackEntity } from '@/components/layout/EntityPanel';
+import { LogEvent } from '@/components/layout/EventLog';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import BayesExplanationModal from '@/components/BayesExplanationModal';
 import { ChevronUp, ChevronDown } from 'lucide-react';
@@ -76,6 +79,10 @@ export default function GamePage() {
   // Performance monitoring
   const [debugVisible, toggleDebug] = useDebugPanelToggle();
 
+  // Lattice layout state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [events, setEvents] = useState<LogEvent[]>([]);
+
   // Generate 3D entities and tactical overlays for demonstration
   const mapBounds = {
     north: 40.7829, south: 40.7489, east: -73.9441, west: -73.9901
@@ -84,7 +91,36 @@ export default function GamePage() {
   const { aircraft, flightPaths } = generateSampleAircraft(mapBounds);
   const boundaries = generateSampleBoundaries(mapBounds);
   const aois = generateSampleAOIs(mapBounds);
-  const sensorCones = generateSampleSensorCones(mapBounds, infrastructure); // Toggle between 2D canvas and 3D map
+  const sensorCones = generateSampleSensorCones(mapBounds, infrastructure);
+
+  // Convert game entities to track entities
+  const trackEntities: TrackEntity[] = [
+    ...infrastructure.map(infra => ({
+      id: infra.id,
+      name: infra.id.replace(/-/g, ' ').toUpperCase(),
+      type: 'infrastructure' as const,
+      classification: infra.isDestroyed ? 'unknown' as const : 'hostile' as const,
+      position: [infra.position[1], infra.position[0]] as [number, number], // Swap for lat/lng
+      lastSeen: Date.now() - Math.random() * 300000,
+      confidence: 0.85 + Math.random() * 0.15,
+      priority: 'high' as const,
+      status: infra.isDestroyed ? 'destroyed' as const : 'active' as const
+    })),
+    ...aircraft.map(craft => ({
+      id: craft.id,
+      name: craft.id.replace(/-/g, ' ').toUpperCase(),
+      type: 'aircraft' as const,
+      classification: craft.isHostile ? 'hostile' as const : 'friendly' as const,
+      position: [craft.position[1], craft.position[0]] as [number, number], // Swap for lat/lng
+      altitude: craft.altitude,
+      speed: craft.speed * 1.94384, // m/s to knots
+      heading: craft.heading * 180 / Math.PI, // radians to degrees
+      lastSeen: Date.now() - Math.random() * 60000,
+      confidence: 0.90 + Math.random() * 0.10,
+      priority: craft.isHostile ? 'high' as const : 'medium' as const,
+      status: 'active' as const
+    }))
+  ];
 
   // Throttled event handlers for performance
   const throttledCellHover = useThrottledCallback((x: number, y: number) => {
@@ -95,6 +131,93 @@ export default function GamePage() {
     setSelectedCell({ x, y });
     handleRecon(x, y, sensor);
   }, 50); // Slightly slower for click to avoid double-triggers
+
+  // Lattice layout handlers
+  const handleEntitySelect = useCallback((entity: TrackEntity) => {
+    // Find corresponding cell position if needed
+    console.log('Entity selected:', entity);
+  }, []);
+
+  const handleEntityFocus = useCallback((entity: TrackEntity) => {
+    // Focus map on entity position
+    console.log('Focus on entity:', entity);
+  }, []);
+
+  const handleLatticeReconAction = useCallback((entityId: string, sensorType: string) => {
+    // Add event log entry
+    const newEvent: LogEvent = {
+      id: `evt_${Date.now()}`,
+      timestamp: Date.now(),
+      type: 'recon',
+      action: `${sensorType.toUpperCase()}_SCAN_INITIATED`,
+      entity: entityId,
+      deltaScore: 0.05,
+      details: 'Scan started',
+      severity: 'info'
+    };
+    setEvents(prev => [newEvent, ...prev]);
+    console.log('Recon action:', entityId, sensorType);
+  }, []);
+
+  const handleLatticeStrikeAction = useCallback((entityId: string, weaponType: string) => {
+    // Add event log entry
+    const newEvent: LogEvent = {
+      id: `evt_${Date.now()}`,
+      timestamp: Date.now(),
+      type: 'strike',
+      action: `${weaponType.toUpperCase()}_STRIKE_EXECUTED`,
+      entity: entityId,
+      deltaScore: -0.85,
+      details: 'Strike completed',
+      severity: 'success'
+    };
+    setEvents(prev => [newEvent, ...prev]);
+    console.log('Strike action:', entityId, weaponType);
+  }, []);
+
+  const handleTimeControlChange = useCallback((action: 'play' | 'pause' | 'step' | 'reset') => {
+    const newEvent: LogEvent = {
+      id: `evt_${Date.now()}`,
+      timestamp: Date.now(),
+      type: 'system',
+      action: `SIMULATION_${action.toUpperCase()}`,
+      details: `Simulation ${action}`,
+      severity: 'info'
+    };
+    setEvents(prev => [newEvent, ...prev]);
+    
+    // Handle game controls
+    switch (action) {
+      case 'play':
+        if (!gameStarted) startGame();
+        break;
+      case 'pause':
+        // Pause logic if needed
+        break;
+      case 'step':
+        // Step logic if needed
+        break;
+      case 'reset':
+        endGame();
+        initializeGame();
+        break;
+    }
+  }, [gameStarted, startGame, endGame, initializeGame]);
+
+  const handleClearLog = useCallback(() => {
+    setEvents([]);
+  }, []);
+
+  const handleExportLog = useCallback(() => {
+    const logData = JSON.stringify(events, null, 2);
+    const blob = new Blob([logData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tactical-log-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [events]);
 
   // Handle recon action
   const handleRecon = async (x: number, y: number, sensor: SensorType) => {
@@ -210,10 +333,23 @@ export default function GamePage() {
 
   return (
     <div className="min-h-screen bg-bg text-ink font-sans">
-      {/* Main tactical ops layout */}
-      <div className="flex h-screen">
-        {/* Left: Map area (fills available space) */}
-        <div className="flex-1 flex flex-col min-w-0">
+      {/* Lattice Layout */}
+      <LatticeLayout
+        onEntitySelect={handleEntitySelect}
+        onEntityFocus={handleEntityFocus}
+        onReconAction={handleLatticeReconAction}
+        onStrikeAction={handleLatticeStrikeAction}
+        onSeedChange={(seed) => console.log('Seed changed:', seed)}
+        onTimeControlChange={handleTimeControlChange}
+        onQuickSearch={setSearchQuery}
+        onClearLog={handleClearLog}
+        onExportLog={handleExportLog}
+        searchQuery={searchQuery}
+        entities={trackEntities}
+        events={events}
+      >
+        {/* Map area content */}
+        <div className="w-full h-full flex flex-col">
           {/* Map header with overlay toggles */}
           <div className="tactical-card m-5 mb-0">
             <div className="flex justify-between items-center">
@@ -329,7 +465,7 @@ export default function GamePage() {
             </div>
           )}
         </div>
-      </div>
+      </LatticeLayout>
 
       {/* Bottom: Timeline/Analytics tray (collapsible) */}
       <div className={`bg-panel border-t border-grid/40 transition-all duration-medium ${

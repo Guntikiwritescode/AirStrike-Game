@@ -99,25 +99,25 @@ class PerformanceCalculator {
     let minValue = Infinity;
     let maxValue = -Infinity;
 
-    // First pass: find min/max for normalization
-    for (let y = 0; y < gridSize; y++) {
-      for (let x = 0; x < gridSize; x++) {
-        const cell = grid[y][x];
-        let value: number;
+            // First pass: find min/max for normalization
+        for (let y = 0; y < gridSize; y++) {
+          for (let x = 0; x < gridSize; x++) {
+            const cell = grid[y][x];
+            let value: number;
 
-        switch (viewMode) {
-          case 'posterior':
-            value = cell.posteriorHostileProbability;
-            break;
-          case 'expectedValue':
-            value = cell.expectedValue || 0;
-            break;
-          case 'variance':
-            value = cell.variance || 0;
-            break;
-          default:
-            value = cell.posteriorHostileProbability;
-        }
+            switch (viewMode) {
+              case 'posterior':
+                value = cell.posteriorProbability;
+                break;
+              case 'expectedValue':
+                value = cell.posteriorProbability; // Use posterior as proxy
+                break;
+              case 'variance':
+                value = Math.abs(cell.posteriorProbability - 0.5); // Use uncertainty as proxy
+                break;
+              default:
+                value = cell.posteriorProbability;
+            }
 
         minValue = Math.min(minValue, value);
         maxValue = Math.max(maxValue, value);
@@ -136,16 +136,16 @@ class PerformanceCalculator {
         // Get raw value
         switch (viewMode) {
           case 'posterior':
-            value = cell.posteriorHostileProbability;
+            value = cell.posteriorProbability;
             break;
           case 'expectedValue':
-            value = cell.expectedValue || 0;
+            value = cell.posteriorProbability; // Use posterior as proxy
             break;
           case 'variance':
-            value = cell.variance || 0;
+            value = Math.abs(cell.posteriorProbability - 0.5); // Use uncertainty as proxy
             break;
           default:
-            value = cell.posteriorHostileProbability;
+            value = cell.posteriorProbability;
         }
 
         // Handle truth overlay with optimized branching
@@ -160,8 +160,14 @@ class PerformanceCalculator {
         } else {
           // Normalized value for color interpolation
           const normalizedValue = (value - minValue) / valueRange;
-          const gradient = this.colorGradients[viewMode] || this.colorGradients.posterior;
-          color = this.interpolateColor(gradient.low, gradient.high, normalizedValue);
+          const gradientKey = viewMode as keyof typeof this.colorGradients;
+          if (gradientKey === 'truth') {
+            // Truth mode uses different color logic (handled above)
+            color = [...this.colorGradients.truth.safe, 180];
+          } else {
+            const gradient = this.colorGradients[gradientKey] || this.colorGradients.posterior;
+            color = this.interpolateColor(gradient.low, gradient.high, normalizedValue);
+          }
         }
 
         // Calculate optimized position (avoid repeated lat/lng conversions in main thread)
@@ -180,13 +186,14 @@ class PerformanceCalculator {
           radius: Math.max(20, Math.min(100, 60 + value * 40)), // Optimized radius calculation
           cell: {
             // Only include essential cell data to reduce payload size
-            posteriorHostileProbability: cell.posteriorHostileProbability,
+            x: cell.x,
+            y: cell.y,
+            posteriorProbability: cell.posteriorProbability,
             hasHostile: cell.hasHostile,
             hasInfrastructure: cell.hasInfrastructure,
-            expectedValue: cell.expectedValue || 0,
-            variance: cell.variance || 0,
             reconHistory: cell.reconHistory,
-            strikeHistory: cell.strikeHistory
+            hostilePriorProbability: cell.hostilePriorProbability,
+            infraPriorProbability: cell.infraPriorProbability
           } as GameCell
         });
       }
@@ -200,7 +207,9 @@ class PerformanceCalculator {
     // Cache management
     if (this.cache.size >= this.cacheMaxSize) {
       const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey);
+      }
     }
     this.cache.set(cacheKey, result);
 
@@ -211,22 +220,22 @@ class PerformanceCalculator {
   static calculateMetrics(grid: GameCell[][], _config: GameConfig) {
     let totalCells = 0;
     let reconCells = 0;
-    let struckCells = 0;
+    const struckCells = 0; // Strike history not available in current GameCell interface
     let averagePosterior = 0;
     let maxPosterior = 0;
 
-    for (let y = 0; y < grid.length; y++) {
-      for (let x = 0; x < grid[y].length; x++) {
-        const cell = grid[y][x];
-        totalCells++;
-        
-        if (cell.reconHistory.length > 0) reconCells++;
-        if (cell.strikeHistory.length > 0) struckCells++;
-        
-        averagePosterior += cell.posteriorHostileProbability;
-        maxPosterior = Math.max(maxPosterior, cell.posteriorHostileProbability);
+          for (let y = 0; y < grid.length; y++) {
+        for (let x = 0; x < grid[y].length; x++) {
+          const cell = grid[y][x];
+          totalCells++;
+          
+          if (cell.reconHistory.length > 0) reconCells++;
+          // Note: strikeHistory not available in current GameCell interface
+          
+          averagePosterior += cell.posteriorProbability;
+          maxPosterior = Math.max(maxPosterior, cell.posteriorProbability);
+        }
       }
-    }
 
     return {
       totalCells,
@@ -247,7 +256,7 @@ class PerformanceCalculator {
     for (let y = 0; y < grid.length; y++) {
       for (let x = 0; x < grid[y].length; x++) {
         const cell = grid[y][x];
-        const posterior = cell.posteriorHostileProbability;
+        const posterior = cell.posteriorProbability;
         
         totalRisk += posterior;
         
