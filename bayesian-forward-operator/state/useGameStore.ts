@@ -30,6 +30,14 @@ import {
   generateVOIHeatmap,
   recommendAction
 } from '@/lib/decision-analysis';
+import {
+  generateRiskAverseHeatmap,
+  generateVarianceHeatmap,
+  generateLossRiskHeatmap,
+  getAllPolicyRecommendations,
+  PolicyType,
+  PolicyRecommendation
+} from '@/lib/risk-analysis';
 
 const DEFAULT_CONFIG: GameConfig = {
   gridSize: 14,
@@ -119,6 +127,12 @@ interface GameStore extends GameState {
   getVOIHeatmap: (sensor: SensorType, radius?: number) => number[][];
   getRecommendation: (sensor: SensorType) => any;
   validateStrikeAction: (x: number, y: number, radius: number) => any;
+  
+  // Risk analysis
+  getRiskAverseHeatmap: (radius?: number, riskAversion?: number) => number[][];
+  getVarianceHeatmap: (radius?: number) => number[][];
+  getLossRiskHeatmap: (radius?: number) => number[][];
+  getPolicyRecommendations: (sensor: SensorType, riskAversion?: number) => Record<PolicyType, PolicyRecommendation>;
   
   // Persistence
   saveToLocalStorage: () => void;
@@ -437,6 +451,33 @@ export const useGameStore = create<GameStore>()(
     validateStrikeAction: (x: number, y: number, radius: number) => {
       const state = get();
       return validateStrike(state.grid, x, y, radius, state.config);
+    },
+    
+    getRiskAverseHeatmap: (radius = 1, riskAversion = 0.5) => {
+      const state = get();
+      return generateRiskAverseHeatmap(state.grid, radius, state.config, riskAversion);
+    },
+    
+    getVarianceHeatmap: (radius = 1) => {
+      const state = get();
+      return generateVarianceHeatmap(state.grid, radius, state.config);
+    },
+    
+    getLossRiskHeatmap: (radius = 1) => {
+      const state = get();
+      return generateLossRiskHeatmap(state.grid, radius, state.config);
+    },
+    
+    getPolicyRecommendations: (sensor: SensorType, riskAversion = 0.5) => {
+      const state = get();
+      return getAllPolicyRecommendations(
+        state.grid, 
+        state.config, 
+        state.remainingBudget, 
+        state.currentTurn, 
+        sensor, 
+        riskAversion
+      );
     },
     
     saveToLocalStorage: () => {

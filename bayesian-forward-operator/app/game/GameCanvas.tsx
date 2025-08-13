@@ -4,11 +4,49 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import { useGameStore } from '@/state/useGameStore';
 import { SensorType, HeatmapType } from '@/lib/types';
 
-export default function GameCanvas() {
+interface GameCanvasProps {
+  selectedSensor: SensorType;
+  onSensorChange: (sensor: SensorType) => void;
+  onCellHighlight?: (x: number, y: number, type: 'primary' | 'alternative') => void;
+  onClearHighlight?: () => void;
+}
+
+export default function GameCanvas({ 
+  selectedSensor, 
+  onSensorChange, 
+  onCellHighlight, 
+  onClearHighlight 
+}: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [selectedSensor, setSelectedSensor] = useState<SensorType>('drone');
   const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null);
   const [viewMode, setViewMode] = useState<HeatmapType>('posterior');
+  const [highlightedCells, setHighlightedCells] = useState<Map<string, 'primary' | 'alternative'>>(new Map());
+
+  // Expose highlight functions to parent
+  const handleCellHighlight = (x: number, y: number, type: 'primary' | 'alternative') => {
+    setHighlightedCells(prev => {
+      const newMap = new Map(prev);
+      newMap.set(`${x},${y}`, type);
+      return newMap;
+    });
+    onCellHighlight?.(x, y, type);
+  };
+
+  const handleClearHighlight = () => {
+    setHighlightedCells(new Map());
+    onClearHighlight?.();
+  };
+
+  // Expose these functions to parent via refs or callbacks
+  useEffect(() => {
+    if (onCellHighlight || onClearHighlight) {
+      // Replace the passed functions with our internal ones
+      Object.assign(window, { 
+        gameCellHighlight: handleCellHighlight,
+        gameClearHighlight: handleClearHighlight 
+      });
+    }
+  }, [onCellHighlight, onClearHighlight]);
   
   const {
     grid,
@@ -20,6 +58,9 @@ export default function GameCanvas() {
     getEVHeatmap,
     getVOIHeatmap,
     validateStrikeAction,
+    getRiskAverseHeatmap,
+    getVarianceHeatmap,
+    getLossRiskHeatmap,
   } = useGameStore();
 
   const CELL_SIZE = 30;
@@ -182,6 +223,52 @@ export default function GameCanvas() {
             useSpecialColorScheme = true;
             break;
             
+          case 'riskAverse':
+            // Get risk-averse utility heatmap and normalize
+            const riskHeatmap = getRiskAverseHeatmap(1, 0.5);
+            const riskValue = riskHeatmap[y][x];
+            const maxRisk = Math.max(...riskHeatmap.flat());
+            const minRisk = Math.min(...riskHeatmap.flat());
+            
+            if (maxRisk > minRisk) {
+              intensity = Math.max(0, (riskValue - minRisk) / (maxRisk - minRisk));
+            } else {
+              intensity = 0;
+            }
+            
+            showText = riskValue > 0;
+            textValue = riskValue > 0 ? `+${riskValue.toFixed(0)}` : riskValue < -10 ? riskValue.toFixed(0) : '';
+            useSpecialColorScheme = true;
+            break;
+            
+          case 'variance':
+            // Get variance heatmap and normalize
+            const varianceHeatmap = getVarianceHeatmap(1);
+            const varianceValue = varianceHeatmap[y][x];
+            const maxVariance = Math.max(...varianceHeatmap.flat());
+            
+            if (maxVariance > 0) {
+              intensity = varianceValue / maxVariance;
+            } else {
+              intensity = 0;
+            }
+            
+            showText = varianceValue > 20;
+            textValue = varianceValue > 20 ? `σ${varianceValue.toFixed(0)}` : '';
+            useSpecialColorScheme = true;
+            break;
+            
+          case 'lossRisk':
+            // Get loss risk heatmap
+            const lossHeatmap = getLossRiskHeatmap(1);
+            const lossValue = lossHeatmap[y][x];
+            intensity = lossValue; // Already a probability 0-1
+            
+            showText = lossValue > 0.3;
+            textValue = lossValue > 0.3 ? `${(lossValue * 100).toFixed(0)}%` : '';
+            useSpecialColorScheme = true;
+            break;
+            
           default:
             intensity = cell.posteriorProbability;
             break;
@@ -191,8 +278,8 @@ export default function GameCanvas() {
         let red: number, green: number, blue: number;
         
         if (useSpecialColorScheme) {
-          if (viewMode === 'expectedValue') {
-            // EV: Green for positive, red for negative, intensity determines brightness
+          if (viewMode === 'expectedValue' || viewMode === 'riskAverse') {
+            // EV/Risk-averse: Green for positive, red for negative, intensity determines brightness
             green = Math.floor(255 * intensity);
             red = Math.floor(128 * (1 - intensity));
             blue = 50;
@@ -201,6 +288,16 @@ export default function GameCanvas() {
             red = Math.floor(128 + 127 * intensity);
             green = Math.floor(64 + 64 * intensity);
             blue = Math.floor(200 + 55 * intensity);
+          } else if (viewMode === 'variance') {
+            // Variance: Orange gradient for uncertainty
+            red = Math.floor(255 * intensity);
+            green = Math.floor(165 * intensity);
+            blue = Math.floor(64 * intensity);
+          } else if (viewMode === 'lossRisk') {
+            // Loss risk: Red gradient for danger
+            red = Math.floor(255 * intensity);
+            green = Math.floor(100 * (1 - intensity));
+            blue = Math.floor(100 * (1 - intensity));
           } else {
             red = Math.floor(255 * intensity);
             green = Math.floor(255 * (1 - intensity));
@@ -227,7 +324,21 @@ export default function GameCanvas() {
           ctx.fillRect(cellX + 2, cellY + 2, 6, 6);
         }
 
-        // Highlight hovered cell
+        // Policy recommendation highlights
+        const cellKey = `${x},${y}`;
+        const highlightType = highlightedCells.get(cellKey);
+        if (highlightType) {
+          if (highlightType === 'primary') {
+            ctx.strokeStyle = '#10b981'; // Green for primary recommendation
+            ctx.lineWidth = 4;
+          } else {
+            ctx.strokeStyle = '#f59e0b'; // Orange for alternatives
+            ctx.lineWidth = 2;
+          }
+          ctx.strokeRect(cellX + 1, cellY + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+        }
+        
+        // Highlight hovered cell (on top of policy highlights)
         if (hoveredCell && hoveredCell.x === x && hoveredCell.y === y) {
           ctx.strokeStyle = '#ffffff';
           ctx.lineWidth = 2;
@@ -247,7 +358,7 @@ export default function GameCanvas() {
         }
       });
     });
-  }, [grid, config.gridSize, config.showTruthOverlay, hoveredCell, viewMode, selectedSensor, getEVHeatmap, getVOIHeatmap]);
+  }, [grid, config.gridSize, config.showTruthOverlay, hoveredCell, viewMode, selectedSensor, getEVHeatmap, getVOIHeatmap, getRiskAverseHeatmap, getVarianceHeatmap, getLossRiskHeatmap]);
 
   useEffect(() => {
     drawGrid();
@@ -261,7 +372,7 @@ export default function GameCanvas() {
         {(['drone', 'sigint', 'ground'] as SensorType[]).map((sensor) => (
           <button
             key={sensor}
-            onClick={() => setSelectedSensor(sensor)}
+            onClick={() => onSensorChange(sensor)}
             className={`px-3 py-1 text-sm rounded ${
               selectedSensor === sensor
                 ? 'bg-blue-600 text-white'
@@ -276,7 +387,7 @@ export default function GameCanvas() {
       {/* View Mode Selection */}
       <div className="flex flex-wrap gap-2 items-center">
         <label className="text-sm font-medium">View:</label>
-        {(['posterior', 'priorField', 'expectedValue', 'valueOfInformation', 'truth'] as HeatmapType[]).map((mode) => (
+        {(['posterior', 'priorField', 'expectedValue', 'valueOfInformation', 'riskAverse', 'variance', 'lossRisk', 'truth'] as HeatmapType[]).map((mode) => (
           <button
             key={mode}
             onClick={() => setViewMode(mode)}
@@ -289,7 +400,10 @@ export default function GameCanvas() {
             {mode === 'posterior' ? 'Beliefs' : 
              mode === 'priorField' ? 'Priors' : 
              mode === 'expectedValue' ? 'EV' :
-             mode === 'valueOfInformation' ? 'VOI' : 'Truth'}
+             mode === 'valueOfInformation' ? 'VOI' : 
+             mode === 'riskAverse' ? 'Risk' :
+             mode === 'variance' ? 'Variance' :
+             mode === 'lossRisk' ? 'Loss Risk' : 'Truth'}
           </button>
         ))}
         
@@ -333,6 +447,42 @@ export default function GameCanvas() {
               <span>Low/No Information Value</span>
             </div>
             <div className="text-xs">Left-click to recon high-VOI areas</div>
+          </>
+        ) : viewMode === 'riskAverse' ? (
+          <>
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-green-500"></div>
+              <span>High Risk-Adjusted Utility</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-red-400"></div>
+              <span>Low/Negative Utility (CVaR penalty)</span>
+            </div>
+            <div className="text-xs">Risk aversion λ=0.5 with 95% CVaR</div>
+          </>
+        ) : viewMode === 'variance' ? (
+          <>
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-orange-500"></div>
+              <span>High Uncertainty</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-slate-600"></div>
+              <span>Low Uncertainty</span>
+            </div>
+            <div className="text-xs">Standard deviation of strike outcomes</div>
+          </>
+        ) : viewMode === 'lossRisk' ? (
+          <>
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-red-600"></div>
+              <span>High Loss Probability</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-slate-600"></div>
+              <span>Low Loss Probability</span>
+            </div>
+            <div className="text-xs">Probability of negative outcomes</div>
           </>
         ) : (
           <>
@@ -392,6 +542,15 @@ export default function GameCanvas() {
              )}
              {viewMode === 'valueOfInformation' && (
                <span>VOI: +{getVOIHeatmap(selectedSensor, 1)[hoveredCell.y][hoveredCell.x].toFixed(0)} points</span>
+             )}
+             {viewMode === 'riskAverse' && (
+               <span>Risk Utility: {getRiskAverseHeatmap(1, 0.5)[hoveredCell.y][hoveredCell.x].toFixed(0)} points</span>
+             )}
+             {viewMode === 'variance' && (
+               <span>Std Dev: {getVarianceHeatmap(1)[hoveredCell.y][hoveredCell.x].toFixed(0)} points</span>
+             )}
+             {viewMode === 'lossRisk' && (
+               <span>Loss Risk: {(getLossRiskHeatmap(1)[hoveredCell.y][hoveredCell.x] * 100).toFixed(0)}%</span>
              )}
              {viewMode === 'truth' && config.showTruthOverlay && (
                <>

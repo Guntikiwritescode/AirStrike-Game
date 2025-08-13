@@ -141,7 +141,7 @@ export interface HeatmapData {
   priorField: number[][];          // θ(x,y) field visualization
 }
 
-export type HeatmapType = 'posterior' | 'expectedValue' | 'valueOfInformation' | 'truth' | 'priorField';
+export type HeatmapType = 'posterior' | 'expectedValue' | 'valueOfInformation' | 'riskAverse' | 'variance' | 'lossRisk' | 'truth' | 'priorField';
 
 export interface PolicyAction {
   type: 'recon' | 'strike';
