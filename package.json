@@ -12,7 +12,14 @@
     "lint": "next lint",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "build:analyze": "ANALYZE=true npm run build",
+    "test:performance": "node scripts/check-performance-budget.js",
+    "test:visual": "node scripts/validate-visual-consistency.js",
+    "qa:check": "npm run test:visual && npm run test:performance",
+    "qa:full": "npm run lint && npm run test:visual && npm run build:analyze && npm run test:performance",
+    "lighthouse:local": "lhci autorun --config=lighthouserc.js",
+    "audit:security": "npm audit --audit-level=moderate"
   },
   "dependencies": {
     "@deck.gl/core": "^9.1.14",

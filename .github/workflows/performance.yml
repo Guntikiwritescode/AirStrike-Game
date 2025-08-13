@@ -1,0 +1,373 @@
+name: Performance Testing & QA
+
+on:
+  pull_request:
+    branches: [main, ui-overhaul]
+    paths:
+      - 'app/**'
+      - 'components/**'
+      - 'lib/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'next.config.ts'
+      - 'tailwind.config.ts'
+  
+  # Allow manual trigger
+  workflow_dispatch:
+
+# Cancel previous runs for the same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Bundle analysis and basic performance checks
+  bundle-analysis:
+    name: Bundle Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build with bundle analysis
+        run: npm run build
+        env:
+          NODE_ENV: production
+          ANALYZE: true
+          
+      - name: Check bundle size budget
+        run: node scripts/check-performance-budget.js
+        
+      - name: Upload bundle analysis
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bundle-analysis
+          path: |
+            .next/analyze/
+            .next/static/
+          retention-days: 7
+
+  # Visual consistency validation
+  visual-consistency:
+    name: Visual Consistency
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+        
+      - name: Lint check (strict mode)
+        run: npm run lint
+        
+      - name: Validate color tokens
+        run: |
+          echo "🎨 Checking for stray hex colors..."
+          HEX_COLORS=$(grep -r "#[0-9a-fA-F]\{6\}" app/ components/ lib/ --include="*.tsx" --include="*.ts" --include="*.jsx" --include="*.js" || true)
+          if [ -n "$HEX_COLORS" ]; then
+            echo "❌ Found hex colors in component code:"
+            echo "$HEX_COLORS"
+            echo "Please use design tokens instead of hardcoded hex colors."
+            exit 1
+          else
+            echo "✅ No stray hex colors found!"
+          fi
+          
+      - name: Validate typography scale
+        run: |
+          echo "📝 Checking for hardcoded font-size..."
+          FONT_SIZES=$(grep -r "font-size:" app/ components/ --include="*.tsx" --include="*.ts" --include="*.css" || true)
+          if [ -n "$FONT_SIZES" ]; then
+            echo "❌ Found hardcoded font-size values:"
+            echo "$FONT_SIZES"
+            echo "Please use responsive typography classes instead."
+            exit 1
+          else
+            echo "✅ No hardcoded font-size found!"
+          fi
+          
+      - name: Validate spacing grid
+        run: |
+          echo "📏 Checking for arbitrary spacing values..."
+          ARBITRARY_SPACING=$(grep -r "m-\[.*\]\\|p-\[.*\]" app/ components/ --include="*.tsx" --include="*.ts" || true)
+          if [ -n "$ARBITRARY_SPACING" ]; then
+            echo "⚠️  Found arbitrary spacing values:"
+            echo "$ARBITRARY_SPACING"
+            echo "Consider using standard Tailwind spacing classes for consistency."
+          else
+            echo "✅ No arbitrary spacing found!"
+          fi
+
+  # Lighthouse performance testing
+  lighthouse:
+    name: Lighthouse Performance
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build production
+        run: npm run build
+        env:
+          NODE_ENV: production
+          
+      - name: Install Lighthouse CI
+        run: npm install -g @lhci/cli@0.12.x
+        
+      - name: Start application
+        run: npm start &
+        env:
+          PORT: 3000
+          
+      - name: Wait for server
+        run: npx wait-on http://localhost:3000 --timeout 60000
+        
+      - name: Run Lighthouse CI
+        run: lhci autorun
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+          
+      - name: Upload Lighthouse results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-results
+          path: |
+            .lighthouseci/
+            lighthouse-results/
+          retention-days: 7
+          
+      - name: Validate performance budgets
+        run: node scripts/check-performance-budget.js
+
+  # End-to-end testing with Playwright
+  e2e-performance:
+    name: E2E Performance Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Install Playwright
+        run: npx playwright install --with-deps
+        
+      - name: Build production
+        run: npm run build
+        env:
+          NODE_ENV: production
+          
+      - name: Start application
+        run: npm start &
+        env:
+          PORT: 3000
+          
+      - name: Wait for server
+        run: npx wait-on http://localhost:3000 --timeout 60000
+        
+      - name: Run performance E2E tests
+        run: npx playwright test --config=playwright-performance.config.ts
+        
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-performance-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+
+  # Performance regression detection
+  performance-regression:
+    name: Performance Regression
+    runs-on: ubuntu-latest
+    needs: [bundle-analysis, lighthouse]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Need full history for baseline comparison
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: '*-results'
+          path: artifacts/
+          
+      - name: Compare with baseline
+        run: |
+          echo "📊 Comparing performance metrics with baseline..."
+          
+          # Get baseline from main branch
+          git checkout main 2>/dev/null || echo "Could not checkout main branch"
+          BASELINE_BUNDLE_SIZE=$(cat .next/analyze/bundles.json 2>/dev/null | jq '.pages["/game"].size // 0' || echo "0")
+          
+          # Compare with current
+          git checkout ${{ github.sha }}
+          CURRENT_BUNDLE_SIZE=$(cat artifacts/bundle-analysis/.next/analyze/bundles.json 2>/dev/null | jq '.pages["/game"].size // 0' || echo "0")
+          
+          # Calculate regression
+          if [ "$BASELINE_BUNDLE_SIZE" -gt 0 ]; then
+            INCREASE_PERCENT=$(echo "scale=2; ($CURRENT_BUNDLE_SIZE - $BASELINE_BUNDLE_SIZE) * 100 / $BASELINE_BUNDLE_SIZE" | bc -l || echo "0")
+            echo "Bundle size change: ${INCREASE_PERCENT}%"
+            
+            # Fail if bundle increased by more than 10%
+            if (( $(echo "$INCREASE_PERCENT > 10" | bc -l) )); then
+              echo "❌ Bundle size increased by more than 10%!"
+              exit 1
+            fi
+          fi
+          
+          echo "✅ Performance regression check passed!"
+
+  # Security audit
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run security audit
+        run: npm audit --audit-level=moderate
+        
+      - name: Check for vulnerable packages
+        run: |
+          VULNS=$(npm audit --json | jq '.vulnerabilities | length')
+          if [ "$VULNS" -gt 0 ]; then
+            echo "❌ Found $VULNS vulnerabilities"
+            npm audit
+            exit 1
+          else
+            echo "✅ No security vulnerabilities found!"
+          fi
+
+  # Final QA summary
+  qa-summary:
+    name: QA Summary
+    runs-on: ubuntu-latest
+    needs: [bundle-analysis, visual-consistency, lighthouse, e2e-performance, performance-regression, security-audit]
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Generate QA report
+        run: |
+          echo "# 🎯 QA Summary Report" > qa-summary.md
+          echo "" >> qa-summary.md
+          echo "## Test Results" >> qa-summary.md
+          echo "" >> qa-summary.md
+          
+          # Check job statuses
+          BUNDLE_STATUS="${{ needs.bundle-analysis.result }}"
+          VISUAL_STATUS="${{ needs.visual-consistency.result }}"
+          LIGHTHOUSE_STATUS="${{ needs.lighthouse.result }}"
+          E2E_STATUS="${{ needs.e2e-performance.result }}"
+          REGRESSION_STATUS="${{ needs.performance-regression.result }}"
+          SECURITY_STATUS="${{ needs.security-audit.result }}"
+          
+          # Add status to report
+          echo "- Bundle Analysis: ${BUNDLE_STATUS}" >> qa-summary.md
+          echo "- Visual Consistency: ${VISUAL_STATUS}" >> qa-summary.md
+          echo "- Lighthouse Performance: ${LIGHTHOUSE_STATUS}" >> qa-summary.md
+          echo "- E2E Performance: ${E2E_STATUS}" >> qa-summary.md
+          echo "- Performance Regression: ${REGRESSION_STATUS}" >> qa-summary.md
+          echo "- Security Audit: ${SECURITY_STATUS}" >> qa-summary.md
+          echo "" >> qa-summary.md
+          
+          # Overall status
+          if [[ "$BUNDLE_STATUS" == "success" && "$VISUAL_STATUS" == "success" && 
+                "$LIGHTHOUSE_STATUS" == "success" && "$E2E_STATUS" == "success" && 
+                "$REGRESSION_STATUS" == "success" && "$SECURITY_STATUS" == "success" ]]; then
+            echo "## ✅ Overall Status: PASS" >> qa-summary.md
+            echo "All QA checks passed! Ready for deployment." >> qa-summary.md
+          else
+            echo "## ❌ Overall Status: FAIL" >> qa-summary.md
+            echo "Some QA checks failed. Please review and address issues." >> qa-summary.md
+          fi
+          
+          echo "" >> qa-summary.md
+          echo "View detailed results in the Actions tab." >> qa-summary.md
+          
+      - name: Upload QA summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-summary
+          path: qa-summary.md
+          retention-days: 30
+          
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('qa-summary.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });

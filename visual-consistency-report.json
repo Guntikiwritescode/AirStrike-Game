@@ -1,0 +1,50 @@
+{
+  "total": 6,
+  "passed": 6,
+  "failed": 0,
+  "success": true,
+  "results": [
+    {
+      "test": "color-tokens",
+      "passed": true,
+      "timestamp": "2025-08-13T10:02:13.093Z",
+      "message": "All colors use design tokens",
+      "filesChecked": 0
+    },
+    {
+      "test": "typography-scale",
+      "passed": true,
+      "timestamp": "2025-08-13T10:02:13.242Z",
+      "message": "All typography uses scale classes",
+      "filesChecked": 0
+    },
+    {
+      "test": "spacing-grid",
+      "passed": true,
+      "timestamp": "2025-08-13T10:02:13.383Z",
+      "message": "All spacing follows 8px grid",
+      "filesChecked": 0
+    },
+    {
+      "test": "border-radius",
+      "passed": true,
+      "timestamp": "2025-08-13T10:02:13.526Z",
+      "message": "All border radius uses system classes",
+      "filesChecked": 0
+    },
+    {
+      "test": "tailwind-config",
+      "passed": true,
+      "timestamp": "2025-08-13T10:02:13.526Z",
+      "message": "All required design tokens present",
+      "tokensChecked": 9
+    },
+    {
+      "test": "accessibility",
+      "passed": true,
+      "timestamp": "2025-08-13T10:02:13.669Z",
+      "message": "No accessibility violations found",
+      "filesChecked": 0
+    }
+  ]
+}
