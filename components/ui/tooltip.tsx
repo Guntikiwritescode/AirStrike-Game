@@ -29,7 +29,7 @@ export function Tooltip({
   const [actualPosition, setActualPosition] = useState<'top' | 'bottom' | 'left' | 'right'>('top');
   const triggerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const showTooltip = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
