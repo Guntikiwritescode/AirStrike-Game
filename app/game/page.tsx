@@ -7,6 +7,7 @@ import { getWorkerManager } from '@/lib/worker-manager';
 import { useKeyboardShortcuts, KeyboardShortcut } from '@/components/KeyboardShortcuts';
 import { SensorReading } from '@/lib/sensors';
 import GameCanvas from './GameCanvas';
+import MapScene from '@/components/MapScene';
 import AnalyticsPanel from './AnalyticsPanel';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import BayesExplanationModal from '@/components/BayesExplanationModal';
@@ -65,6 +66,8 @@ export default function GamePage() {
   // Layer and debug state
   const [activeLayer, setActiveLayer] = useState<HeatmapType>('posterior');
   const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [showLabels, setShowLabels] = useState(false);
+  const [use3DMap, setUse3DMap] = useState(true); // Toggle between 2D canvas and 3D map
 
   // Handle recon action
   const handleRecon = async (x: number, y: number, sensor: SensorType) => {
@@ -188,35 +191,64 @@ export default function GamePage() {
           <div className="tactical-card m-5 mb-0">
             <div className="flex justify-between items-center">
               <div className="tactical-header mb-0">Tactical Map</div>
-              <LayerToggle
-                activeLayer={activeLayer}
-                onLayerChange={setActiveLayer}
-                disabled={!gameStarted}
-              />
+              <div className="flex items-center gap-3">
+                <LayerToggle
+                  activeLayer={activeLayer}
+                  onLayerChange={setActiveLayer}
+                  showLabels={showLabels}
+                  onLabelsChange={setShowLabels}
+                  disabled={!gameStarted}
+                />
+                <Button
+                  variant={use3DMap ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setUse3DMap(!use3DMap)}
+                  className="font-mono text-xs uppercase tracking-wider"
+                  title={use3DMap ? 'Switch to 2D canvas' : 'Switch to 3D terrain'}
+                >
+                  {use3DMap ? '3D' : '2D'}
+                </Button>
+              </div>
             </div>
           </div>
 
           {/* Map canvas area */}
           <div className="flex-1 m-5 mt-3">
             <div className="tactical-card h-full p-3">
-              <GameCanvas 
-                selectedSensor={selectedSensor}
-                onSensorChange={setSelectedSensor}
-                onCellClick={(x, y) => {
-                  setSelectedCell({ x, y });
-                  handleRecon(x, y, selectedSensor);
-                }}
-                onCellRightClick={(x, y) => {
-                  setSelectedCell({ x, y });
-                  handleStrike(x, y);
-                }}
-                onCellHighlight={(x, y) => {
-                  setSelectedCell({ x, y });
-                }}
-                onClearHighlight={() => {
-                  setSelectedCell(null);
-                }}
-              />
+              {use3DMap ? (
+                <MapScene
+                  grid={grid}
+                  config={config}
+                  viewMode={activeLayer}
+                  showLabels={showLabels}
+                  onCellClick={(x, y) => {
+                    setSelectedCell({ x, y });
+                    handleRecon(x, y, selectedSensor);
+                  }}
+                  onCellHover={(x, y) => {
+                    setSelectedCell({ x, y });
+                  }}
+                />
+              ) : (
+                <GameCanvas 
+                  selectedSensor={selectedSensor}
+                  onSensorChange={setSelectedSensor}
+                  onCellClick={(x, y) => {
+                    setSelectedCell({ x, y });
+                    handleRecon(x, y, selectedSensor);
+                  }}
+                  onCellRightClick={(x, y) => {
+                    setSelectedCell({ x, y });
+                    handleStrike(x, y);
+                  }}
+                  onCellHighlight={(x, y) => {
+                    setSelectedCell({ x, y });
+                  }}
+                  onClearHighlight={() => {
+                    setSelectedCell(null);
+                  }}
+                />
+              )}
             </div>
           </div>
         </div>
