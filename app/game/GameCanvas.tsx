@@ -208,7 +208,7 @@ export default function GameCanvas({
     canvas.height = canvasSize;
 
     // Draw grid
-    ctx.strokeStyle = '#475569'; // slate-600
+    ctx.strokeStyle = 'var(--color-grid)';
     ctx.lineWidth = 1;
 
     for (let i = 0; i <= config.gridSize; i++) {
@@ -345,7 +345,7 @@ export default function GameCanvas({
 
         // Draw infrastructure markers (always show in truth mode if enabled)
         if (cell.hasInfrastructure && (viewMode !== 'truth' || config.showTruthOverlay)) {
-          ctx.fillStyle = '#3b82f6'; // blue-500
+          ctx.fillStyle = 'var(--color-accent)';
           ctx.fillRect(cellX + CELL_SIZE - 8, cellY + 2, 6, 6);
         }
 

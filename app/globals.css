@@ -3,7 +3,7 @@
 :root {
   color-scheme: dark;
   
-  /* Tactical ops color tokens */
+  /* Lattice tactical color tokens */
   --color-bg: #0B0F14;
   --color-panel: #0E131A;
   --color-panel-2: #121924;
@@ -12,8 +12,6 @@
   --color-accent: #55E3FF;
   --color-accent-2: #20C6F7;
   --color-warn: #FF6B6B;
-  --color-warn-2: #FF8A8A;
-  --color-ok: #84F7A8;
   --color-grid: #1B2430;
   
   /* shadcn/ui CSS variables */
@@ -36,7 +34,7 @@
   --border: #1B2430;
   --input: #121924;
   --ring: #55E3FF;
-  --radius: 0.5rem;
+  --radius: 1rem;
 }
 
 * {
@@ -48,10 +46,16 @@ html, body {
   color: var(--color-ink);
   height: 100%;
   overflow-x: hidden;
+  /* 8px spacing grid base */
+  line-height: 1.4;
 }
 
 body {
   font-feature-settings: "rlig" 1, "calt" 1;
+  /* Enhanced font rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* Custom scrollbars */

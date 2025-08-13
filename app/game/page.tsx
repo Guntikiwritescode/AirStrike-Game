@@ -185,9 +185,9 @@ export default function GamePage() {
         {/* Left: Map area (fills available space) */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Map header with overlay toggles */}
-          <div className="card m-3 mb-0">
+          <div className="tactical-card m-5 mb-0">
             <div className="flex justify-between items-center">
-              <div className="panel-header mb-0">Tactical Map</div>
+              <div className="tactical-header mb-0">Tactical Map</div>
               <LayerToggle
                 activeLayer={activeLayer}
                 onLayerChange={setActiveLayer}
@@ -197,8 +197,8 @@ export default function GamePage() {
           </div>
 
           {/* Map canvas area */}
-          <div className="flex-1 m-3 mt-2">
-            <div className="card h-full p-2">
+          <div className="flex-1 m-5 mt-3">
+            <div className="tactical-card h-full p-3">
               <GameCanvas 
                 selectedSensor={selectedSensor}
                 onSensorChange={setSelectedSensor}
@@ -222,17 +222,17 @@ export default function GamePage() {
         </div>
 
         {/* Right: Control Panel (collapsible) */}
-        <div className={`bg-panel2 border-l border-grid/40 transition-all duration-medium ${
+        <div className={`bg-panel2 border-l border-grid/40 transition-all duration-300 ${
           rightPanelCollapsed ? 'w-12' : 'w-80'
         } flex flex-col`}>
           {/* Panel header */}
-          <div className="p-3 border-b border-grid/40 flex justify-between items-center">
-            {!rightPanelCollapsed && <div className="panel-header mb-0">Mission Control</div>}
+          <div className="p-5 border-b border-grid/40 flex justify-between items-center">
+            {!rightPanelCollapsed && <div className="tactical-header mb-0">Mission Control</div>}
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setRightPanelCollapsed(!rightPanelCollapsed)}
-              className="w-8 h-8 p-0"
+              className="w-8 h-8 p-0 tactical-focus"
             >
               {rightPanelCollapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </Button>
@@ -240,7 +240,7 @@ export default function GamePage() {
 
                     {/* Panel content */}
           {!rightPanelCollapsed && (
-            <div className="flex-1 overflow-y-auto p-3">
+            <div className="flex-1 overflow-y-auto p-5">
               <AccordionControlPanel
                 selectedSensor={selectedSensor}
                 onSensorChange={setSelectedSensor}

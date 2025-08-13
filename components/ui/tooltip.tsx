@@ -257,12 +257,12 @@ export function MathTooltip({ formula, explanation, variables, children, classNa
         {explanation}
       </div>
       {variables && Object.keys(variables).length > 0 && (
-        <div className="text-xs space-y-1 pt-2 border-t border-slate-600">
-          <div className="text-slate-400 font-medium">Where:</div>
+        <div className="text-xs space-y-1 pt-2 border-t border-grid/40">
+          <div className="text-muted font-medium">Where:</div>
           {Object.entries(variables).map(([variable, meaning]) => (
             <div key={variable} className="flex gap-2">
-              <span className="font-mono text-blue-300 min-w-0">{variable}:</span>
-              <span className="text-slate-300">{meaning}</span>
+              <span className="font-mono text-accent min-w-0">{variable}:</span>
+              <span className="text-ink">{meaning}</span>
             </div>
           ))}
         </div>
@@ -274,7 +274,7 @@ export function MathTooltip({ formula, explanation, variables, children, classNa
     <Tooltip content={content} maxWidth={400} className={className}>
       <div className="inline-flex items-center gap-1 cursor-help">
         {children}
-        <Calculator className="w-3 h-3 text-blue-400 opacity-60" />
+        <Calculator className="w-3 h-3 text-accent opacity-60" />
       </div>
     </Tooltip>
   );
@@ -292,11 +292,11 @@ export function InfoTooltip({ title, description, children, className, icon }: I
   const content = (
     <div className="space-y-1">
       {title && (
-        <div className="font-medium text-slate-100 border-b border-slate-600 pb-1">
+        <div className="font-medium text-ink border-b border-grid/40 pb-1">
           {title}
         </div>
       )}
-      <div className="text-slate-200">
+      <div className="text-ink">
         {description}
       </div>
     </div>
@@ -306,7 +306,7 @@ export function InfoTooltip({ title, description, children, className, icon }: I
     <Tooltip content={content} className={className}>
       <div className="inline-flex items-center gap-1 cursor-help">
         {children}
-        {icon || <Info className="w-3 h-3 text-slate-400 opacity-60" />}
+        {icon || <Info className="w-3 h-3 text-muted opacity-60" />}
       </div>
     </Tooltip>
   );

@@ -62,32 +62,32 @@ export default function ControlPanel() {
   return (
     <div className="space-y-6">
       {/* Game Status */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Game Status</h3>
+      <div className="tactical-card">
+        <h3 className="tactical-header">Game Status</h3>
         
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="flex justify-between">
-            <span className="text-slate-400">Turn:</span>
-            <span>{currentTurn} / {config.maxTurns}</span>
+            <span className="text-muted">Turn:</span>
+            <span className="tactical-stat">{currentTurn} / {config.maxTurns}</span>
           </div>
           
-          <div className="w-full bg-slate-700 rounded-full h-2">
+          <div className="w-full bg-panel2 rounded-full h-2">
             <div 
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              className="bg-accent h-2 rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
           
           <div className="flex justify-between">
-            <span className="text-slate-400">Budget:</span>
-            <span className={remainingBudget < 100 ? 'text-red-400' : 'text-green-400'}>
+            <span className="text-muted">Budget:</span>
+            <span className={`tactical-stat ${remainingBudget < 100 ? 'text-warn' : 'text-accent'}`}>
               ${remainingBudget}
             </span>
           </div>
           
           <div className="flex justify-between">
-            <span className="text-slate-400">Score:</span>
-            <span className={score >= 0 ? 'text-green-400' : 'text-red-400'}>
+            <span className="text-muted">Score:</span>
+            <span className={`tactical-stat ${score >= 0 ? 'text-accent' : 'text-warn'}`}>
               {score}
             </span>
           </div>
@@ -95,17 +95,17 @@ export default function ControlPanel() {
       </div>
 
       {/* Game Controls */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Controls</h3>
+      <div className="tactical-card">
+        <h3 className="tactical-header">Controls</h3>
         
-        <div className="space-y-2">
+        <div className="space-y-3">
           <button
             onClick={handleStartGame}
             disabled={gameEnded}
-            className={`w-full flex items-center justify-center space-x-2 px-4 py-2 rounded font-medium ${
+            className={`w-full flex items-center justify-center space-x-2 tactical-focus ${
               gameStarted && !gameEnded
-                ? 'bg-red-600 hover:bg-red-700 text-white'
-                : 'bg-green-600 hover:bg-green-700 text-white disabled:bg-slate-600 disabled:text-slate-400'
+                ? 'tactical-btn-primary bg-warn hover:bg-warn/90'
+                : 'tactical-btn-primary disabled:bg-panel disabled:text-muted'
             }`}
           >
             {gameStarted && !gameEnded ? (
@@ -123,7 +123,7 @@ export default function ControlPanel() {
 
           <button
             onClick={handleNewGame}
-            className="w-full flex items-center justify-center space-x-2 px-4 py-2 rounded font-medium bg-slate-600 hover:bg-slate-700 text-white"
+            className="w-full flex items-center justify-center space-x-2 tactical-btn tactical-focus"
           >
             <RotateCcw size={16} />
             <span>New Game</span>
@@ -132,7 +132,7 @@ export default function ControlPanel() {
           {gameStarted && !gameEnded && (
             <button
               onClick={nextTurn}
-              className="w-full px-4 py-2 rounded font-medium bg-blue-600 hover:bg-blue-700 text-white"
+              className="w-full tactical-btn-primary tactical-focus"
             >
               Next Turn
             </button>
@@ -141,10 +141,10 @@ export default function ControlPanel() {
       </div>
 
       {/* Seed Selection */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Game Mode</h3>
+      <div className="tactical-card">
+        <h3 className="tactical-header">Game Mode</h3>
         
-        <div className="space-y-2">
+        <div className="space-y-3">
           <button
             onClick={handleDailySeed}
             disabled={gameStarted && !gameEnded}
