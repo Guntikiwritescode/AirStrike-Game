@@ -256,8 +256,10 @@ export const useGameStore = create<GameStore>()(
     
     performRecon: (x: number, y: number, sensor: SensorType) => {
       set((state) => {
+        // Add bounds checking before grid access - check grid exists and has proper dimensions
+        if (!state.grid || state.grid.length === 0 || !state.grid[y] || !state.grid[y][x]) return;
+        
         const cell = state.grid[y][x];
-        if (!cell) return;
         
         // Generate context for this cell
         const contextRng = createSubRNG(state.config.seed, `context-${x}-${y}`);
@@ -358,6 +360,9 @@ export const useGameStore = create<GameStore>()(
     
     performStrike: (x: number, y: number, radius: number, forceExecute: boolean = false) => {
       set((state) => {
+        // Add bounds checking before grid access - ensure grid is properly initialized
+        if (!state.grid || state.grid.length === 0) return;
+        
         // Validate strike constraints
         const validation = validateStrike(state.grid, x, y, radius, state.config);
         
@@ -458,6 +463,10 @@ export const useGameStore = create<GameStore>()(
     
     getEVHeatmap: async (radius = 1) => {
       const state = get();
+      // Add bounds checking before grid access
+      if (!state.grid || state.grid.length === 0) {
+        return Array(state.config.gridSize).fill(null).map(() => Array(state.config.gridSize).fill(0));
+      }
       const workerManager = getWorkerManager();
       const result = await workerManager.generateEVHeatmap(state.grid, radius, state.config);
       return result.result;
@@ -465,6 +474,10 @@ export const useGameStore = create<GameStore>()(
     
     getVOIHeatmap: async (sensor: SensorType, radius = 1) => {
       const state = get();
+      // Add bounds checking before grid access
+      if (!state.grid || state.grid.length === 0) {
+        return Array(state.config.gridSize).fill(null).map(() => Array(state.config.gridSize).fill(0));
+      }
       const workerManager = getWorkerManager();
       const result = await workerManager.generateVOIHeatmap(state.grid, sensor, state.config, radius);
       return result.result;
@@ -472,11 +485,19 @@ export const useGameStore = create<GameStore>()(
     
     validateStrikeAction: (x: number, y: number, radius: number) => {
       const state = get();
+      // Add bounds checking before grid access
+      if (!state.grid || state.grid.length === 0) {
+        return { allowed: false, requiresConfirmation: false, reason: 'Game not initialized', outcome: null };
+      }
       return validateStrike(state.grid, x, y, radius, state.config);
     },
     
     getRiskAverseHeatmap: async (radius = 1, riskAversion = 0.5) => {
       const state = get();
+      // Add bounds checking before grid access
+      if (!state.grid || state.grid.length === 0) {
+        return Array(state.config.gridSize).fill(null).map(() => Array(state.config.gridSize).fill(0));
+      }
       const workerManager = getWorkerManager();
       const result = await workerManager.generateRiskAverseHeatmap(
         state.grid, radius, state.config, riskAversion, 256
@@ -486,6 +507,10 @@ export const useGameStore = create<GameStore>()(
     
     getVarianceHeatmap: async (radius = 1) => {
       const state = get();
+      // Add bounds checking before grid access
+      if (!state.grid || state.grid.length === 0) {
+        return Array(state.config.gridSize).fill(null).map(() => Array(state.config.gridSize).fill(0));
+      }
       const workerManager = getWorkerManager();
       const result = await workerManager.generateVarianceHeatmap(
         state.grid, radius, state.config, 256
@@ -495,6 +520,10 @@ export const useGameStore = create<GameStore>()(
     
     getLossRiskHeatmap: async (radius = 1) => {
       const state = get();
+      // Add bounds checking before grid access
+      if (!state.grid || state.grid.length === 0) {
+        return Array(state.config.gridSize).fill(null).map(() => Array(state.config.gridSize).fill(0));
+      }
       const workerManager = getWorkerManager();
       const result = await workerManager.generateLossRiskHeatmap(
         state.grid, radius, state.config, 256
@@ -504,6 +533,10 @@ export const useGameStore = create<GameStore>()(
     
     getPolicyRecommendations: async (sensor: SensorType, riskAversion = 0.5) => {
       const state = get();
+      // Add bounds checking before grid access
+      if (!state.grid || state.grid.length === 0) {
+        return {} as Record<PolicyType, PolicyRecommendation>;
+      }
       const workerManager = getWorkerManager();
       const result = await workerManager.getPolicyRecommendations(
         state.grid, 
@@ -587,6 +620,13 @@ export const useGameStore = create<GameStore>()(
         if (saved) {
           const state = JSON.parse(saved);
           set(state);
+          
+          // Ensure grid is properly initialized - if empty, initialize the game
+          const currentState = get();
+          if (!currentState.grid || currentState.grid.length === 0) {
+            currentState.initializeGame();
+          }
+          
           return true;
         }
         return false;
