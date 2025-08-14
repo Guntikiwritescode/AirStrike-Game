@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { useGameStore } from '@/state/useGameStore';
 import { Play, Pause, RotateCcw, Calendar, Shuffle, Settings } from 'lucide-react';
-import { MathTooltip, InfoTooltip, MetricTooltip } from '@/components/ui/tooltip';
-import { ShortcutIndicator } from '@/components/KeyboardShortcuts';
+// Tooltip and keyboard components available but not currently used
+// import { MathTooltip, InfoTooltip, MetricTooltip } from '@/components/ui/tooltip';
+// import { ShortcutIndicator } from '@/components/KeyboardShortcuts';
 
 function ControlPanel() {
   const {
