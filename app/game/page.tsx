@@ -325,100 +325,104 @@ export default function GamePage() {
 
   // Initialize game on mount
   useEffect(() => {
-    if (!mounted) {
-      const initializeApp = async () => {
+    if (mounted) return;
+    
+    setMounted(true); // flip first to show UI even if initialization fails
+    
+    const initializeApp = async () => {
+      try {
+        // Step 1: Fonts (simulate checking if fonts are loaded)
+        updateStep('fonts', { status: 'running', details: 'Checking font loading...' });
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to show the step
+        updateStep('fonts', { status: 'success' });
+
+        // Step 2: Store initialization
+        updateStep('store', { status: 'running', details: 'Loading game state...' });
+        const loaded = loadFromLocalStorage();
+        if (!loaded) {
+          initializeGame();
+        }
+        updateStep('store', { status: 'success' });
+
+        // Step 3: Map data preparation
+        updateStep('map', { status: 'running', details: 'Preparing map data and tiles...' });
+        await new Promise(resolve => setTimeout(resolve, 200));
+        // Map success/error will be handled by the onMapLoad callback
+
+        // Step 4: Simulation worker
+        updateStep('simWorker', { status: 'running', details: 'Initializing web worker...' });
         try {
-          // Step 1: Fonts (simulate checking if fonts are loaded)
-          updateStep('fonts', { status: 'running', details: 'Checking font loading...' });
-          await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to show the step
-          updateStep('fonts', { status: 'success' });
-
-          // Step 2: Store initialization
-          updateStep('store', { status: 'running', details: 'Loading game state...' });
-          const loaded = loadFromLocalStorage();
-          updateStep('store', { status: 'success' });
-
-          // Step 3: Map data preparation
-          updateStep('map', { status: 'running', details: 'Preparing map data and tiles...' });
-          await new Promise(resolve => setTimeout(resolve, 200));
-          // Map success/error will be handled by the onMapLoad callback
-
-          // Step 4: Simulation worker
-          updateStep('simWorker', { status: 'running', details: 'Initializing web worker...' });
-          try {
-            const workerManager = getWorkerManager();
-            await workerManager.initialize();
-            
-            // Check if workers are actually working
-            if (workerManager.isUsingWorkers()) {
-              updateStep('simWorker', { status: 'success' });
-            } else {
-              updateStep('simWorker', { 
-                status: 'error', 
-                errorMessage: 'Worker fallback mode - main thread only',
-                details: 'Running in degraded mode'
-              });
-              setShowDegradedBanner(true);
-            }
-          } catch (error) {
+          const workerManager = getWorkerManager();
+          await workerManager.initialize();
+          
+          // Check if workers are actually working
+          if (workerManager.isUsingWorkers()) {
+            updateStep('simWorker', { status: 'success' });
+          } else {
             updateStep('simWorker', { 
               status: 'error', 
-              errorMessage: error instanceof Error ? error.message : 'Failed to initialize worker'
+              errorMessage: 'Worker fallback mode - main thread only',
+              details: 'Running in degraded mode'
             });
             setShowDegradedBanner(true);
           }
+        } catch (error) {
+          updateStep('simWorker', { 
+            status: 'error', 
+            errorMessage: error instanceof Error ? error.message : 'Failed to initialize worker'
+          });
+          setShowDegradedBanner(true);
+        }
 
-          // Step 5: Performance worker
-          updateStep('perfWorker', { status: 'running', details: 'Starting performance monitoring...' });
-          try {
-            const perfWorkerManager = PerformanceWorkerManager.getInstance();
-            // Give it a moment to initialize
-            await new Promise(resolve => setTimeout(resolve, 200));
-            
-            // Check if the manager exists and can get metrics
-            const metrics = perfWorkerManager.getMetrics();
-            if (metrics && typeof metrics === 'object') {
-              updateStep('perfWorker', { status: 'success' });
-            } else {
-              updateStep('perfWorker', { 
-                status: 'error', 
-                errorMessage: 'Performance worker fallback mode',
-                details: 'Running without worker pool'
-              });
-            }
-          } catch (error) {
+        // Step 5: Performance worker
+        updateStep('perfWorker', { status: 'running', details: 'Starting performance monitoring...' });
+        try {
+          const perfWorkerManager = PerformanceWorkerManager.getInstance();
+          // Give it a moment to initialize
+          await new Promise(resolve => setTimeout(resolve, 200));
+          
+          // Check if the manager exists and can get metrics
+          const metrics = perfWorkerManager.getMetrics();
+          if (metrics && typeof metrics === 'object') {
+            updateStep('perfWorker', { status: 'success' });
+          } else {
             updateStep('perfWorker', { 
               status: 'error', 
-              errorMessage: error instanceof Error ? error.message : 'Performance worker failed'
+              errorMessage: 'Performance worker fallback mode',
+              details: 'Running without worker pool'
             });
           }
-
-          // Step 6: Initial game setup
-          updateStep('heatmaps', { status: 'running', details: 'Generating initial game state...' });
-          if (!loaded) {
-            initializeGame();
-          }
-          updateStep('heatmaps', { status: 'success' });
-
-          setMounted(true);
         } catch (error) {
-          console.error('Initialization error:', error);
-          // Find the currently running step and mark it as errored
-          const runningStepId = steps.find(s => s.status === 'running')?.id;
-          if (runningStepId) {
-            updateStep(runningStepId, { 
-              status: 'error', 
-              errorMessage: error instanceof Error ? error.message : 'Unknown error'
-            });
-          }
+          updateStep('perfWorker', { 
+            status: 'error', 
+            errorMessage: error instanceof Error ? error.message : 'Performance worker failed'
+          });
         }
-      };
 
-      initializeApp();
-      return;
-    }
+        // Step 6: Initial game setup
+        updateStep('heatmaps', { status: 'running', details: 'Generating initial game state...' });
+        updateStep('heatmaps', { status: 'success' });
 
-    // Setup worker loading state listener
+      } catch (error) {
+        console.error('Startup error:', error);
+        tacticalToast.blocked('Startup error', String((error as Error).message || error));
+        
+        // Find the currently running step and mark it as errored
+        const runningStepId = steps.find(s => s.status === 'running')?.id;
+        if (runningStepId) {
+          updateStep(runningStepId, { 
+            status: 'error', 
+            errorMessage: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+    };
+
+    initializeApp();
+  }, [mounted, loadFromLocalStorage, updateStep, initializeGame, steps]);
+
+  // Setup worker loading state listener
+  useEffect(() => {
     const workerManager = getWorkerManager();
     const unsubscribe = workerManager.onLoadingStateChange((loadingState) => {
       setWorkerLoadingState({
@@ -432,7 +436,7 @@ export default function GamePage() {
     return () => {
       unsubscribe();
     };
-  }, [mounted, loadFromLocalStorage, updateStep, initializeGame, steps]);
+  }, []);
 
   // Save to localStorage when game state changes
   useEffect(() => {
