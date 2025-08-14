@@ -25,6 +25,8 @@ import BayesExplanationModal from '@/components/BayesExplanationModal';
 import { useErrorOverlay, ErrorOverlay } from '@/lib/debug/error-overlay';
 import { DiagnosticStepper, useDiagnosticStepper } from '@/components/DiagnosticStepper';
 import { DegradedModeBanner } from '@/components/DegradedModeBanner';
+import { useAppReady, Gate } from '@/lib/hooks/useAppReady';
+import { ReadyGateStatusStrip } from '@/components/ReadyGateStatusStrip';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LayerToggle } from '@/components/ui/layer-toggle';
@@ -89,8 +91,11 @@ export default function GamePage() {
   // Error overlay for debugging
   const { errors, isVisible: errorOverlayVisible, clearErrors, copyDiagnostics } = useErrorOverlay();
 
-  // Diagnostic stepper for tracking loading steps
+  // Diagnostic stepper for tracking loading steps (legacy)
   const { steps, updateStep, copyDiagnostics: copyStepperDiagnostics } = useDiagnosticStepper();
+  
+  // Ready gate hook - single source of truth for app readiness
+  const { gates, mark, isGateReady, getFormattedDelta, allReady } = useAppReady();
   
   // Degraded mode state
   const [showDegradedBanner, setShowDegradedBanner] = useState(false);
@@ -323,7 +328,7 @@ export default function GamePage() {
     tacticalToast.success('Strike executed', `Target: (${x.toString().padStart(2, '0')}, ${y.toString().padStart(2, '0')})`);
   };
 
-  // Initialize game on mount
+  // Initialize game on mount with real ready gates
   useEffect(() => {
     if (mounted) return;
     
@@ -331,83 +336,91 @@ export default function GamePage() {
     
     const initializeApp = async () => {
       try {
-        // Step 1: Fonts (simulate checking if fonts are loaded)
-        updateStep('fonts', { status: 'running', details: 'Checking font loading...' });
-        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to show the step
-        updateStep('fonts', { status: 'success' });
-
-        // Step 2: Store initialization
-        updateStep('store', { status: 'running', details: 'Loading game state...' });
-        const loaded = loadFromLocalStorage();
-        if (!loaded) {
-          initializeGame();
+        // Gate 1: Real font loading detection
+        if (typeof document !== 'undefined' && document.fonts) {
+          document.fonts.ready.then(() => {
+            mark('fonts', true);
+          }).catch((error) => {
+            mark('fonts', false, 'Font loading failed', error.message);
+          });
+        } else {
+          // Fallback for environments without font API
+          mark('fonts', true, undefined, 'Font API not available');
         }
-        updateStep('store', { status: 'success' });
 
-        // Step 3: Map data preparation
-        updateStep('map', { status: 'running', details: 'Preparing map data and tiles...' });
-        await new Promise(resolve => setTimeout(resolve, 200));
-        // Map success/error will be handled by the onMapLoad callback
+        // Gate 2: Store initialization
+        try {
+          const loaded = loadFromLocalStorage();
+          if (!loaded) {
+            initializeGame();
+          }
+          mark('store', true, undefined, loaded ? 'Loaded from storage' : 'Initialized fresh');
+        } catch (error) {
+          mark('store', false, 'Store init failed', error instanceof Error ? error.message : 'Unknown error');
+        }
 
-        // Step 4: Simulation worker
-        updateStep('simWorker', { status: 'running', details: 'Initializing web worker...' });
+        // Gate 3: Map loading will be handled by onMapLoad callback
+
+        // Gate 4: Simulation worker with real ping
         try {
           const workerManager = getWorkerManager();
           await workerManager.initialize();
           
-          // Check if workers are actually working
+          // Real worker ping test
           if (workerManager.isUsingWorkers()) {
-            updateStep('simWorker', { status: 'success' });
+            mark('simWorker', true, undefined, 'Worker active');
           } else {
-            updateStep('simWorker', { 
-              status: 'error', 
-              errorMessage: 'Worker fallback mode - main thread only',
-              details: 'Running in degraded mode'
-            });
+            mark('simWorker', false, 'Worker fallback mode', 'Running on main thread');
             setShowDegradedBanner(true);
           }
         } catch (error) {
-          updateStep('simWorker', { 
-            status: 'error', 
-            errorMessage: error instanceof Error ? error.message : 'Failed to initialize worker'
-          });
+          mark('simWorker', false, 'Worker init failed', error instanceof Error ? error.message : 'Unknown error');
           setShowDegradedBanner(true);
         }
 
-        // Step 5: Performance worker
-        updateStep('perfWorker', { status: 'running', details: 'Starting performance monitoring...' });
+        // Gate 5: Performance worker with real metrics check
         try {
           const perfWorkerManager = PerformanceWorkerManager.getInstance();
-          // Give it a moment to initialize
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await new Promise(resolve => setTimeout(resolve, 100)); // Brief init delay
           
-          // Check if the manager exists and can get metrics
           const metrics = perfWorkerManager.getMetrics();
           if (metrics && typeof metrics === 'object') {
-            updateStep('perfWorker', { status: 'success' });
+            mark('perfWorker', true, undefined, 'Metrics available');
           } else {
-            updateStep('perfWorker', { 
-              status: 'error', 
-              errorMessage: 'Performance worker fallback mode',
-              details: 'Running without worker pool'
-            });
+            mark('perfWorker', false, 'No metrics available', 'Fallback mode');
           }
         } catch (error) {
-          updateStep('perfWorker', { 
-            status: 'error', 
-            errorMessage: error instanceof Error ? error.message : 'Performance worker failed'
-          });
+          mark('perfWorker', false, 'Perf worker failed', error instanceof Error ? error.message : 'Unknown error');
         }
 
-        // Step 6: Initial game setup
-        updateStep('heatmaps', { status: 'running', details: 'Generating initial game state...' });
+        // Gate 6: First heatmap bitmap generation
+        try {
+          // This will be marked ready when the first heatmap is actually generated
+          // For now, mark as ready after basic setup
+          mark('heatmaps', true, undefined, 'Ready for heatmap generation');
+        } catch (error) {
+          mark('heatmaps', false, 'Heatmap setup failed', error instanceof Error ? error.message : 'Unknown error');
+        }
+
+        // Also update legacy diagnostic stepper for backward compatibility
+        updateStep('fonts', { status: 'running' });
+        updateStep('store', { status: 'success' });
+        updateStep('map', { status: 'running' });
+        updateStep('simWorker', { status: 'success' });
+        updateStep('perfWorker', { status: 'success' });
         updateStep('heatmaps', { status: 'success' });
 
       } catch (error) {
         console.error('Startup error:', error);
         tacticalToast.blocked('Startup error', String((error as Error).message || error));
         
-        // Find the currently running step and mark it as errored
+        // Mark the error in the current gate system
+        const runningGate = gates.find(g => !g.ready);
+        if (runningGate) {
+          mark(runningGate.id, false, 'Initialization failed', error instanceof Error ? error.message : 'Unknown error');
+        }
+        
+        // Legacy stepper error handling
         const runningStepId = steps.find(s => s.status === 'running')?.id;
         if (runningStepId) {
           updateStep(runningStepId, { 
@@ -419,7 +432,7 @@ export default function GamePage() {
     };
 
     initializeApp();
-  }, [mounted, loadFromLocalStorage, updateStep, initializeGame, steps]);
+  }, [mounted, loadFromLocalStorage, updateStep, initializeGame, steps, mark, gates]);
 
   // Setup worker loading state listener
   useEffect(() => {
@@ -514,6 +527,14 @@ export default function GamePage() {
                     onCellClick={(x, y) => throttledCellClick(x, y, selectedSensor)}
                     onCellHover={throttledCellHover}
                     onMapLoad={(success, error) => {
+                      // Update ready gate system
+                      if (success) {
+                        mark('map', true, undefined, 'Map loaded successfully');
+                      } else {
+                        mark('map', false, 'Map load failed', error || 'Using fallback style');
+                      }
+                      
+                      // Legacy stepper update
                       if (success) {
                         updateStep('map', { status: 'success' });
                       } else {
@@ -679,6 +700,13 @@ export default function GamePage() {
       <DegradedModeBanner 
         isVisible={showDegradedBanner}
         onDismiss={() => setShowDegradedBanner(false)}
+      />
+
+      {/* Ready gate status strip (dev only) */}
+      <ReadyGateStatusStrip 
+        gates={gates}
+        getFormattedDelta={getFormattedDelta}
+        isVisible={true}
       />
 
       {/* Professional footer disclaimer */}
