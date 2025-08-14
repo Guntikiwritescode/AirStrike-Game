@@ -11,6 +11,18 @@ export const hasOffscreen = typeof window !== 'undefined' &&
 export const hasWebWorkers = typeof Worker !== 'undefined';
 
 /**
+ * Safe worker creation utility
+ */
+export function safeNewWorker(url: URL): Worker | null {
+  try { 
+    return new Worker(url, { type: 'module' }); 
+  } catch (e) { 
+    console.error('Worker failed', e); 
+    return null;
+  }
+}
+
+/**
  * Creates a simulation worker with error handling
  */
 export function createSimWorker(): Worker | null {
@@ -19,15 +31,7 @@ export function createSimWorker(): Worker | null {
     return null;
   }
 
-  try {
-    return new Worker(
-      new URL('../../workers/sim.worker.ts', import.meta.url),
-      { type: 'module' }
-    );
-  } catch (error) {
-    console.error('Failed to create simulation worker:', error);
-    return null;
-  }
+  return safeNewWorker(new URL('../../workers/sim.worker.ts', import.meta.url));
 }
 
 /**
@@ -39,15 +43,7 @@ export function createPerfWorker(): Worker | null {
     return null;
   }
 
-  try {
-    return new Worker(
-      new URL('../workers/performance.worker.ts', import.meta.url),
-      { type: 'module' }
-    );
-  } catch (error) {
-    console.error('Failed to create performance worker:', error);
-    return null;
-  }
+  return safeNewWorker(new URL('../workers/performance.worker.ts', import.meta.url));
 }
 
 /**
@@ -59,15 +55,7 @@ export function createHeatmapWorker(): Worker | null {
     return null;
   }
 
-  try {
-    return new Worker(
-      new URL('../workers/heatmap.worker.ts', import.meta.url),
-      { type: 'module' }
-    );
-  } catch (error) {
-    console.error('Failed to create heatmap worker:', error);
-    return null;
-  }
+  return safeNewWorker(new URL('../workers/heatmap.worker.ts', import.meta.url));
 }
 
 /**

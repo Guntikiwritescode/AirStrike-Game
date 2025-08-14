@@ -1,0 +1,103 @@
+# Page snapshot
+
+```yaml
+- text: "TACTICAL ANALYTICS v2.1.0 SEED:"
+- textbox "42": daily-2025-08-14
+- text: PAUSED
+- button "Reset to Turn 0"
+- button "Start Simulation"
+- button "Step Forward One Turn"
+- text: T000
+- textbox "Quick search..."
+- text: "24"
+- button "Settings"
+- text: ENTITIES 10/10
+- button "ALL10"
+- button "FRIENDLY2"
+- button "HOSTILE8"
+- button "SUSPECT0"
+- button "UNKNOWN0"
+- combobox:
+  - option "Priority" [selected]
+  - option "Last Seen"
+  - option "Confidence"
+  - option "Name"
+- text: infra-0 H
+- button "Focus on Map"
+- text: INFRA 0 87% 33s infra-1 H
+- button "Focus on Map"
+- text: INFRA 1 86% 1m infra-2 H
+- button "Focus on Map"
+- text: INFRA 2 86% 4m infra-3 H
+- button "Focus on Map"
+- text: INFRA 3 87% 3m infra-4 H
+- button "Focus on Map"
+- text: INFRA 4 95% 59s infra-5 H
+- button "Focus on Map"
+- text: INFRA 5 95% 4m infra-6 H
+- button "Focus on Map"
+- text: INFRA 6 93% 3m
+- button "AUTO"
+- button "CENTER"
+- button "OVERVIEW"
+- button "RECON"
+- button "STRIKE"
+- button "ANALYTICS"
+- paragraph: No entity selected
+- paragraph: Select an entity to view details
+- text: EVENT LOG
+- button "ALL0"
+- button "Auto-scroll"
+- button "Export Log"
+- button "Clear Log"
+- button "Collapse Event Log"
+- text: TIME TYP ENT ACTION ΔSCORE DETAILS
+- paragraph: No events to display
+- text: Tactical Map
+- button "POSTERIOR P" [disabled]
+- button "EV E" [disabled]
+- button "VOI V" [disabled]
+- button "RISK R" [disabled]
+- button "LABELS" [disabled]
+- button "3D"
+- region "Map"
+- group:
+  - text: © OpenStreetMap contributors |
+  - link "MapLibre":
+    - /url: https://maplibre.org/
+- text: "250 m Center: Lat: 40.765900° Lng: -73.967100° View: Zoom: 15.5 DPR: 1.0x P(Hostile)"
+- img
+- text: 25% 25% 25% 25% 25% 25% Mission Control
+- button
+- heading "Mission Control" [level=3]:
+  - button "Mission Control" [expanded]
+- region "Mission Control":
+  - text: Turn 0 Budget 1,000 $
+  - button "Start Mission"
+  - button "Reset"
+- heading "Sensors" [level=3]:
+  - button "Sensors" [expanded]
+- region "Sensors":
+  - button "DRONE High accuracy, moderate cost TPR 0.92 FPR 0.06 $15" [disabled]
+  - button "SIGINT Signals intelligence, electronic surveillance TPR 0.84 FPR 0.12 $8" [disabled]
+  - button "GROUND Ground spotters, variable accuracy TPR 0.76 FPR 0.18 $20" [disabled]
+  - text: "TPR: True Positive Rate (sensitivity) FPR: False Positive Rate (1 - specificity)"
+- heading "Actions" [level=3]:
+  - button "Actions" [expanded]
+- region "Actions":
+  - text: No target selected
+  - button "RECON $10" [disabled]
+  - button "STRIKE $50" [disabled]
+- heading "Map Layers" [level=3]:
+  - button "Map Layers"
+- heading "Settings" [level=3]:
+  - button "Settings"
+- button
+- heading "Runtime Error (1)" [level=3]
+- button "✕"
+- text: "Unhandled Promise Rejection Failed to execute 'querySelector' on 'Document': 'text=System Diagnostics' is not a valid selector. SyntaxError: Failed to execute 'querySelector' on 'Document': 'text=System Diagnostics' is not a valid selector. at eval (eval at predicate (eval at evaluate (:291:30)), <anonymous>:3:36) at predicate (eval at evaluate (:291:30), <anonymous>:5:23) at next (eval at evaluate (:291:30), <anonymous>:25:29) at eval (eval at evaluate (:291:30), <anonymous>:38:9) at UtilityScript.evaluate (<anonymous>:293:16) at UtilityScript.<anonymous> (<anonymous>:1:44) 3:43:55 PM"
+- button "Copy Diagnostics"
+- button "Clear"
+- text: Ready Gates fonts 107ms store 14ms map — simWorker — perfWorker — heatmaps — 2/6 ready Fictional, abstract simulation • No real-world guidance
+- alert
+```

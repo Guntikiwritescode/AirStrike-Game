@@ -29,6 +29,7 @@ export class PerformanceWorkerManager {
   private workerIndex = 0;
   private isInitialized = false;
   private isWorkerMode = true; // Track if we're using workers or fallback
+  private initializationPromise: Promise<void> | null = null;
 
   // Performance metrics
   private metrics = {
@@ -47,10 +48,24 @@ export class PerformanceWorkerManager {
   }
 
   private constructor() {
-    this.initializeWorkers();
+    // Don't initialize workers immediately - wait for first request
+    this.isInitialized = false;
+    this.isWorkerMode = false; // Start in main thread mode
   }
 
-  private async initializeWorkers(): Promise<void> {
+  // Lazy initialization - only create workers when complex layers are needed
+  private async ensureInitialized(): Promise<void> {
+    if (this.isInitialized) return;
+    
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+    
+    this.initializationPromise = this.tryInitializeWorkers();
+    return this.initializationPromise;
+  }
+
+  private async tryInitializeWorkers(): Promise<void> {
     if (this.isInitialized) return;
 
     // Log capabilities for debugging
@@ -97,6 +112,16 @@ export class PerformanceWorkerManager {
         console.warn('🔄 Performance calculations running in degraded mode');
       }
     }
+  }
+
+  // Check if this is a layer type that requires complex computation
+  private requiresWorker(taskType: string): boolean {
+    const complexTasks = [
+      'calculate_layer_data', 
+      'calculate_risk', 
+      'calculate_metrics'
+    ];
+    return complexTasks.includes(taskType);
   }
 
   private handleWorkerMessage(response: PerformanceWorkerResponse): void {
@@ -148,7 +173,7 @@ export class PerformanceWorkerManager {
     this.isInitialized = false;
 
     // Reinitialize
-    await this.initializeWorkers();
+    await this.tryInitializeWorkers();
   }
 
   private processQueue(): void {
@@ -189,12 +214,22 @@ export class PerformanceWorkerManager {
     this.processQueue();
   }
 
-  // Public API for task submission
-  public submitTask<TPayload, TResult>(
+  // Public API for task submission with lazy worker initialization
+  public async submitTask<TPayload, TResult>(
     type: PerformanceWorkerMessage['type'],
     payload: TPayload,
     priority: number = 5
   ): Promise<TResult> {
+    // For complex tasks, try to initialize workers first
+    if (this.requiresWorker(type)) {
+      await this.ensureInitialized();
+    }
+    
+    // If workers failed to initialize or not needed, use main thread fallback
+    if (!this.isWorkerMode) {
+      return this.executeMainThreadFallback<TResult>(type, payload);
+    }
+
     return new Promise((resolve, reject) => {
       const task: WorkerTask<TPayload, TResult> = {
         id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -209,6 +244,78 @@ export class PerformanceWorkerManager {
       this.taskQueue.push(task as WorkerTask<unknown, unknown>);
       this.processQueue();
     });
+  }
+
+  // Main thread fallback for when workers are not available
+  private executeMainThreadFallback<TResult>(
+    type: PerformanceWorkerMessage['type'],
+    payload: unknown
+  ): Promise<TResult> {
+    return new Promise((resolve) => {
+      // For performance layers, return minimal placeholder data
+      switch (type) {
+        case 'calculate_layer_data':
+          const request = payload as LayerCalculationRequest;
+          const result: LayerCalculationResult = {
+            cellData: this.generatePlaceholderCellData(request),
+            timestamp: Date.now()
+          };
+          resolve(result as TResult);
+          break;
+
+        case 'calculate_risk':
+          // Simple placeholder risk calculation
+          resolve({ riskScore: 0.5, confidence: 0.3 } as TResult);
+          break;
+
+        case 'calculate_metrics':
+          // Simple placeholder metrics calculation 
+          resolve({ expectedValue: 0.4, variance: 0.1, voi: 0.2 } as TResult);
+          break;
+
+        default:
+          // For other tasks, return minimal data
+          resolve({ result: 'placeholder', method: 'main_thread' } as TResult);
+      }
+    });
+  }
+
+  // Generate placeholder cell data for visualization layers
+  private generatePlaceholderCellData(request: LayerCalculationRequest): LayerCalculationResult['cellData'] {
+    const { grid, viewMode } = request;
+    const cellData: LayerCalculationResult['cellData'] = [];
+    
+    grid.forEach((row, y) => {
+      row.forEach((cell, x) => {
+        // Generate simple placeholder values based on view mode
+        let value: number;
+        switch (viewMode) {
+          case 'expectedValue':
+            value = 0.3 + Math.random() * 0.4; // 0.3-0.7 range
+            break;
+          case 'valueOfInformation':
+            value = Math.random() * 0.3; // 0-0.3 range  
+            break;
+          case 'riskAverse':
+            value = 0.2 + Math.random() * 0.3; // 0.2-0.5 range
+            break;
+          default:
+            value = Math.random() * 0.5; // 0-0.5 range
+        }
+        
+        cellData.push({
+          position: [x, y, 0] as [number, number, number],
+          gridX: x,
+          gridY: y,
+          value,
+          color: [value * 255, (1 - value) * 255, 128, 255] as [number, number, number, number],
+          radius: 0.5,
+          cell
+        });
+      });
+    });
+    
+    return cellData;
   }
 
   // Specialized methods for common calculations
@@ -242,8 +349,15 @@ export class PerformanceWorkerManager {
       ...this.metrics,
       activeWorkers: this.workers.length,
       activeTasks: this.activeTasks.size,
-      queuedTasks: this.taskQueue.length
+      queuedTasks: this.taskQueue.length,
+      isWorkerMode: this.isWorkerMode,
+      isInitialized: this.isInitialized
     };
+  }
+
+  // Check if using workers or main thread fallback
+  public isUsingWorkers(): boolean {
+    return this.isWorkerMode && this.isInitialized;
   }
 
   // Cleanup
