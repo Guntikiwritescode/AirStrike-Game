@@ -14,7 +14,7 @@ interface ActionPanelProps {
 }
 
 // Mini sparkline component
-const Sparkline = ({ data, color = '#55E3FF', width = 60, height = 20 }: {
+const Sparkline = ({ data, color = 'var(--color-accent)', width = 60, height = 20 }: {
   data: number[];
   color?: string;
   width?: number;
@@ -318,7 +318,7 @@ export default function ActionPanel({
             <div className="text-xs text-muted">AVG RESPONSE TIME</div>
             <div className="text-sm font-mono text-accent">2.3s</div>
           </div>
-          <Sparkline data={[2.1, 2.3, 2.0, 2.5, 2.2, 2.4, 2.1, 2.3]} color="#FF6B6B" />
+          <Sparkline data={[2.1, 2.3, 2.0, 2.5, 2.2, 2.4, 2.1, 2.3]} color="var(--color-warn)" />
         </div>
 
         {/* Threat Assessment */}

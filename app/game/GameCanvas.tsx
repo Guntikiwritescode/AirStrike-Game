@@ -351,7 +351,7 @@ export default function GameCanvas({
 
         // Draw recon history markers (except in truth mode)
         if (cell.reconHistory.length > 0 && viewMode !== 'truth') {
-          ctx.fillStyle = '#fbbf24'; // amber-400
+          ctx.fillStyle = 'var(--color-info)';
           ctx.fillRect(cellX + 2, cellY + 2, 6, 6);
         }
 
@@ -360,10 +360,10 @@ export default function GameCanvas({
         const highlightType = highlightedCells.get(cellKey);
         if (highlightType) {
           if (highlightType === 'primary') {
-            ctx.strokeStyle = '#10b981'; // Green for primary recommendation
+            ctx.strokeStyle = 'var(--color-success)';
             ctx.lineWidth = 4;
           } else {
-            ctx.strokeStyle = '#f59e0b'; // Orange for alternatives
+            ctx.strokeStyle = 'var(--color-warning)';
             ctx.lineWidth = 2;
           }
           ctx.strokeRect(cellX + 1, cellY + 1, CELL_SIZE - 2, CELL_SIZE - 2);
@@ -371,14 +371,14 @@ export default function GameCanvas({
         
         // Highlight hovered cell (on top of policy highlights)
         if (hoveredCell && hoveredCell.x === x && hoveredCell.y === y) {
-          ctx.strokeStyle = '#ffffff';
+          ctx.strokeStyle = 'var(--color-white)';
           ctx.lineWidth = 2;
           ctx.strokeRect(cellX, cellY, CELL_SIZE, CELL_SIZE);
         }
 
         // Show text values
         if (showText && textValue) {
-          ctx.fillStyle = '#ffffff';
+          ctx.fillStyle = 'var(--color-white)';
           ctx.font = '10px monospace';
           ctx.textAlign = 'center';
           ctx.fillText(

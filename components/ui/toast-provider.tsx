@@ -7,8 +7,8 @@ import { X, AlertTriangle, CheckCircle, Info } from 'lucide-react';
 const toastStyles = {
   className: '',
   style: {
-    background: '#0E131A',
-    color: '#E6EDF3',
+    background: 'var(--color-panel)',
+    color: 'var(--color-ink)',
     border: '1px solid rgba(27, 36, 48, 0.4)',
     borderRadius: '12px',
     fontSize: '14px',
@@ -16,8 +16,8 @@ const toastStyles = {
     maxWidth: '400px',
   },
   iconTheme: {
-    primary: '#55E3FF',
-    secondary: '#0E131A',
+    primary: 'var(--color-accent)',
+    secondary: 'var(--color-panel)',
   },
 };
 

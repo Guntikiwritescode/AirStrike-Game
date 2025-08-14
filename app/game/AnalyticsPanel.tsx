@@ -193,7 +193,7 @@ export default function AnalyticsPanel() {
                     y1="90%"
                     x2="90%"
                     y2="10%"
-                    stroke="#64748b"
+                    stroke="var(--color-slate-500)"
                     strokeWidth="1"
                     strokeDasharray="5,5"
                   />
@@ -219,7 +219,7 @@ export default function AnalyticsPanel() {
                         cx={`${x}%`}
                         cy={`${y}%`}
                         r={size}
-                        fill="#3b82f6"
+                        fill="var(--color-blue-500)"
                         opacity="0.7"
                       />
                     );

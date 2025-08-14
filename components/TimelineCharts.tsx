@@ -102,7 +102,7 @@ function ScoreChart({ data, width, height }: ChartProps) {
             y1={50 + ratio * (height - 100)}
             x2={width - 20}
             y2={50 + ratio * (height - 100)}
-            stroke="#475569"
+            stroke="var(--color-slate-600)"
             strokeWidth={0.5}
           />
         ))}
@@ -113,7 +113,7 @@ function ScoreChart({ data, width, height }: ChartProps) {
             key={ratio}
             x={50}
             y={55 + ratio * (height - 100)}
-            fill="#94a3b8"
+            fill="var(--color-slate-400)"
             fontSize="12"
             textAnchor="end"
           >
@@ -124,7 +124,7 @@ function ScoreChart({ data, width, height }: ChartProps) {
         {/* Score line */}
         <polyline
           fill="none"
-          stroke="#10b981"
+          stroke="var(--color-success)"
           strokeWidth="3"
           points={data.map((d, i) => {
             const x = 60 + (i / (data.length - 1)) * (width - 80);
@@ -143,7 +143,7 @@ function ScoreChart({ data, width, height }: ChartProps) {
               cx={x}
               cy={y}
               r="4"
-              fill="#10b981"
+              fill="var(--color-success)"
               className="hover:r-6 transition-all cursor-pointer"
             >
               <title>Turn {d.turn}: {d.score} points</title>
@@ -152,10 +152,10 @@ function ScoreChart({ data, width, height }: ChartProps) {
         })}
 
         {/* X-axis labels */}
-        <text x={width / 2} y={height - 10} fill="#94a3b8" fontSize="12" textAnchor="middle">
+        <text x={width / 2} y={height - 10} fill="var(--color-slate-400)" fontSize="12" textAnchor="middle">
           Turn
         </text>
-        <text x={25} y={height / 2} fill="#94a3b8" fontSize="12" textAnchor="middle" transform={`rotate(-90 25 ${height / 2})`}>
+        <text x={25} y={height / 2} fill="var(--color-slate-400)" fontSize="12" textAnchor="middle" transform={`rotate(-90 25 ${height / 2})`}>
           Score
         </text>
       </svg>
@@ -180,7 +180,7 @@ function EVGapChart({ data, width, height }: ChartProps) {
             y1={50 + ratio * (height - 100)}
             x2={width - 20}
             y2={50 + ratio * (height - 100)}
-            stroke="#475569"
+            stroke="var(--color-slate-600)"
             strokeWidth={0.5}
           />
         ))}
@@ -191,7 +191,7 @@ function EVGapChart({ data, width, height }: ChartProps) {
           y1={50 + (1 - (0 - minGap) / gapRange) * (height - 100)}
           x2={width - 20}
           y2={50 + (1 - (0 - minGap) / gapRange) * (height - 100)}
-          stroke="#ef4444"
+          stroke="var(--color-red-500)"
           strokeWidth={1}
           strokeDasharray="5,5"
         />
@@ -202,7 +202,7 @@ function EVGapChart({ data, width, height }: ChartProps) {
             key={ratio}
             x={50}
             y={55 + ratio * (height - 100)}
-            fill="#94a3b8"
+            fill="var(--color-slate-400)"
             fontSize="12"
             textAnchor="end"
           >
@@ -213,7 +213,7 @@ function EVGapChart({ data, width, height }: ChartProps) {
         {/* Best EV available line */}
         <polyline
           fill="none"
-          stroke="#3b82f6"
+          stroke="var(--color-blue-500)"
           strokeWidth="2"
           strokeDasharray="3,3"
           points={data.map((d, i) => {
@@ -226,7 +226,7 @@ function EVGapChart({ data, width, height }: ChartProps) {
         {/* Chosen EV line */}
         <polyline
           fill="none"
-          stroke="#10b981"
+          stroke="var(--color-success)"
           strokeWidth="3"
           points={data.map((d, i) => {
             const x = 60 + (i / (data.length - 1)) * (width - 80);
@@ -251,14 +251,14 @@ function EVGapChart({ data, width, height }: ChartProps) {
 
         {/* Legend */}
         <g transform="translate(70, 70)">
-          <line x1={0} y1={0} x2={20} y2={0} stroke="#3b82f6" strokeWidth={2} strokeDasharray="3,3" />
-          <text x={25} y={5} fill="#94a3b8" fontSize="12">Best EV Available</text>
+          <line x1={0} y1={0} x2={20} y2={0} stroke="var(--color-blue-500)" strokeWidth={2} strokeDasharray="3,3" />
+          <text x={25} y={5} fill="var(--color-slate-400)" fontSize="12">Best EV Available</text>
           
-          <line x1={0} y1={20} x2={20} y2={20} stroke="#10b981" strokeWidth={3} />
-          <text x={25} y={25} fill="#94a3b8" fontSize="12">Chosen EV</text>
+          <line x1={0} y1={20} x2={20} y2={20} stroke="var(--color-success)" strokeWidth={3} />
+          <text x={25} y={25} fill="var(--color-slate-400)" fontSize="12">Chosen EV</text>
           
           <rect x={0} y={35} width={20} height={10} fill="rgba(239, 68, 68, 0.3)" />
-          <text x={25} y={45} fill="#94a3b8" fontSize="12">EV Gap</text>
+          <text x={25} y={45} fill="var(--color-slate-400)" fontSize="12">EV Gap</text>
         </g>
       </svg>
     </div>
@@ -282,7 +282,7 @@ function BrierChart({ data, width, height }: ChartProps) {
             y1={50 + ratio * (height - 100)}
             x2={width - 20}
             y2={50 + ratio * (height - 100)}
-            stroke="#475569"
+            stroke="var(--color-slate-600)"
             strokeWidth={0.5}
           />
         ))}
@@ -293,7 +293,7 @@ function BrierChart({ data, width, height }: ChartProps) {
             key={ratio}
             x={50}
             y={55 + ratio * (height - 100)}
-            fill="#94a3b8"
+            fill="var(--color-slate-400)"
             fontSize="12"
             textAnchor="end"
           >
@@ -304,7 +304,7 @@ function BrierChart({ data, width, height }: ChartProps) {
         {/* Brier score line */}
         <polyline
           fill="none"
-          stroke="#f59e0b"
+          stroke="var(--color-amber-500)"
           strokeWidth="3"
           points={data.map((d, i) => {
             const x = 60 + (i / (data.length - 1)) * (width - 80);
@@ -316,7 +316,7 @@ function BrierChart({ data, width, height }: ChartProps) {
         {/* Uncertainty level (background) */}
         <polyline
           fill="none"
-          stroke="#64748b"
+          stroke="var(--color-slate-500)"
           strokeWidth="2"
           strokeDasharray="5,5"
           points={data.map((d, i) => {
@@ -337,7 +337,7 @@ function BrierChart({ data, width, height }: ChartProps) {
               cx={x}
               cy={y}
               r="3"
-              fill="#f59e0b"
+              fill="var(--color-amber-500)"
               className="hover:r-5 transition-all cursor-pointer"
             >
               <title>Turn {d.turn}: Brier {d.brierScore.toFixed(4)}</title>
@@ -347,11 +347,11 @@ function BrierChart({ data, width, height }: ChartProps) {
 
         {/* Legend */}
         <g transform="translate(70, 70)">
-          <line x1={0} y1={0} x2={20} y2={0} stroke="#f59e0b" strokeWidth={3} />
-          <text x={25} y={5} fill="#94a3b8" fontSize="12">Brier Score</text>
+          <line x1={0} y1={0} x2={20} y2={0} stroke="var(--color-amber-500)" strokeWidth={3} />
+          <text x={25} y={5} fill="var(--color-slate-400)" fontSize="12">Brier Score</text>
           
-          <line x1={0} y1={20} x2={20} y2={20} stroke="#64748b" strokeWidth={2} strokeDasharray="5,5" />
-          <text x={25} y={25} fill="#94a3b8" fontSize="12">Uncertainty Level</text>
+          <line x1={0} y1={20} x2={20} y2={20} stroke="var(--color-slate-500)" strokeWidth={2} strokeDasharray="5,5" />
+          <text x={25} y={25} fill="var(--color-slate-400)" fontSize="12">Uncertainty Level</text>
         </g>
       </svg>
     </div>
@@ -375,7 +375,7 @@ function InfraRiskChart({ data, width, height }: ChartProps) {
             y1={50 + ratio * (height - 100)}
             x2={width - 20}
             y2={50 + ratio * (height - 100)}
-            stroke="#475569"
+            stroke="var(--color-slate-600)"
             strokeWidth={0.5}
           />
         ))}
@@ -386,7 +386,7 @@ function InfraRiskChart({ data, width, height }: ChartProps) {
           y1={50 + (1 - (0.3 - minRisk) / riskRange) * (height - 100)}
           x2={width - 20}
           y2={50 + (1 - (0.3 - minRisk) / riskRange) * (height - 100)}
-          stroke="#ef4444"
+          stroke="var(--color-red-500)"
           strokeWidth={2}
           strokeDasharray="5,5"
         />
@@ -397,7 +397,7 @@ function InfraRiskChart({ data, width, height }: ChartProps) {
             key={ratio}
             x={50}
             y={55 + ratio * (height - 100)}
-            fill="#94a3b8"
+            fill="var(--color-slate-400)"
             fontSize="12"
             textAnchor="end"
           >
@@ -418,7 +418,7 @@ function InfraRiskChart({ data, width, height }: ChartProps) {
         {/* Risk line */}
         <polyline
           fill="none"
-          stroke="#ef4444"
+          stroke="var(--color-red-500)"
           strokeWidth="3"
           points={data.map((d, i) => {
             const x = 60 + (i / (data.length - 1)) * (width - 80);
@@ -438,7 +438,7 @@ function InfraRiskChart({ data, width, height }: ChartProps) {
               cx={x}
               cy={y}
               r="3"
-              fill={isHigh ? "#ef4444" : "#10b981"}
+              fill={isHigh ? "var(--color-red-500)" : "var(--color-success)"}
               className="hover:r-5 transition-all cursor-pointer"
             >
               <title>Turn {d.turn}: Risk {(d.infraRisk * 100).toFixed(1)}%</title>
@@ -448,11 +448,11 @@ function InfraRiskChart({ data, width, height }: ChartProps) {
 
         {/* Legend */}
         <g transform="translate(70, 70)">
-          <line x1={0} y1={0} x2={20} y2={0} stroke="#ef4444" strokeWidth={3} />
-          <text x={25} y={5} fill="#94a3b8" fontSize="12">Infrastructure Risk</text>
+          <line x1={0} y1={0} x2={20} y2={0} stroke="var(--color-red-500)" strokeWidth={3} />
+          <text x={25} y={5} fill="var(--color-slate-400)" fontSize="12">Infrastructure Risk</text>
           
-          <line x1={0} y1={20} x2={20} y2={20} stroke="#ef4444" strokeWidth={2} strokeDasharray="5,5" />
-          <text x={25} y={25} fill="#94a3b8" fontSize="12">Critical Threshold (30%)</text>
+          <line x1={0} y1={20} x2={20} y2={20} stroke="var(--color-red-500)" strokeWidth={2} strokeDasharray="5,5" />
+          <text x={25} y={25} fill="var(--color-slate-400)" fontSize="12">Critical Threshold (30%)</text>
         </g>
       </svg>
     </div>

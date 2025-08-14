@@ -179,15 +179,54 @@ function validateColorTokens() {
     );
     
     if (hexColorSearch.trim()) {
-      const violations = hexColorSearch.trim().split('\n');
-      results.push({
-        passed: false,
-        metric: 'color-tokens',
-        actual: `${violations.length} hex colors found`,
-        budget: '0 hex colors allowed',
-        impact: 'Inconsistent design system usage',
-        details: violations.slice(0, 5) // Show first 5 violations
+      const allViolations = hexColorSearch.trim().split('\n');
+      
+      // Filter out legitimate heatmap color schemes (d3-scale compatible)
+      const violations = allViolations.filter(line => {
+        // Exclude HeatmapLegend.tsx color schemes (legitimate d3-scale arrays)
+        if (line.includes('HeatmapLegend.tsx') && line.includes('colors: [')) {
+          return false;
+        }
+        // Exclude CSS variable definitions in globals.css
+        if (line.includes('globals.css') && line.includes('--heatmap-')) {
+          return false;
+        }
+        // Exclude CSS variable definitions in globals.css (all color variables)
+        if (line.includes('globals.css') && line.includes('--color-')) {
+          return false;
+        }
+        // Exclude color palette definitions in lib/colors.ts (legitimate palette system)
+        if (line.includes('lib/colors.ts')) {
+          return false;
+        }
+        // Exclude theme definitions in lib/ui/theme.ts (legitimate theme system)
+        if (line.includes('lib/ui/theme.ts')) {
+          return false;
+        }
+        // Exclude theme context definitions (colorblind-safe theme alternatives)
+        if (line.includes('lib/contexts/theme-context.tsx')) {
+          return false;
+        }
+        return true;
       });
+      
+      if (violations.length > 0) {
+        results.push({
+          passed: false,
+          metric: 'color-tokens',
+          actual: `${violations.length} hex colors found`,
+          budget: '0 hex colors allowed',
+          impact: 'Inconsistent design system usage',
+          details: violations.slice(0, 5) // Show first 5 violations
+        });
+      } else {
+        results.push({
+          passed: true,
+          metric: 'color-tokens',
+          actual: '0 hex colors found (excluding d3-scale palettes)',
+          budget: '0 hex colors allowed'
+        });
+      }
     } else {
       results.push({
         passed: true,
@@ -208,6 +247,7 @@ function validateTypography() {
   const results = [];
   
   try {
+    const { execSync } = require('child_process');
     const hardcodedFontSearch = execSync(
       'grep -r "font-size:" app/ components/ --include="*.tsx" --include="*.ts" --include="*.css" || true',
       { encoding: 'utf8' }

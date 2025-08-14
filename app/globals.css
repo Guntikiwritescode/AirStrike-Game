@@ -14,6 +14,49 @@
   --color-warn: #FF6B6B;
   --color-grid: #1B2430;
   
+  /* Tactical status colors */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-info: #fbbf24;
+  --color-white: #ffffff;
+  
+  /* Chart and data visualization colors */
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-400: #94a3b8;
+  --color-blue-500: #3b82f6;
+  --color-red-500: #ef4444;
+  --color-amber-500: #f59e0b;
+  
+  /* Heatmap color schemes - for d3-scale compatibility */
+  --heatmap-value-1: #0891b2;
+  --heatmap-value-2: #0284c7;
+  --heatmap-value-3: #3b82f6;
+  --heatmap-value-4: #6366f1;
+  --heatmap-value-5: #8b5cf6;
+  --heatmap-value-6: #a855f7;
+  
+  --heatmap-risk-1: #fed7aa;
+  --heatmap-risk-2: #fdba74;
+  --heatmap-risk-3: #fb923c;
+  --heatmap-risk-4: #f97316;
+  --heatmap-risk-5: #ea580c;
+  --heatmap-risk-6: #dc2626;
+  
+  --heatmap-posterior-1: #1e3a8a;
+  --heatmap-posterior-2: #1e40af;
+  --heatmap-posterior-3: #2563eb;
+  --heatmap-posterior-4: #3b82f6;
+  --heatmap-posterior-5: #06b6d4;
+  --heatmap-posterior-6: #0891b2;
+  
+  --heatmap-variance-1: #581c87;
+  --heatmap-variance-2: #7c3aed;
+  --heatmap-variance-3: #8b5cf6;
+  --heatmap-variance-4: #a855f7;
+  --heatmap-variance-5: #c084fc;
+  --heatmap-variance-6: #e879f9;
+  
   /* shadcn/ui CSS variables */
   --background: #0B0F14;
   --foreground: #E6EDF3;
