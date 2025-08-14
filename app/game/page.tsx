@@ -1,18 +1,20 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useGameStore } from '@/state/useGameStore';
 import { SensorType } from '@/lib/types';
 import { getWorkerManager } from '@/lib/worker-manager';
 import { PerformanceWorkerManager } from '@/lib/worker-manager-perf';
 
 import { SensorReading } from '@/lib/sensors';
-import GameCanvas from './GameCanvas';
-import MapScene from '@/components/MapScene';
+const GameCanvas = dynamic(() => import('./GameCanvas'), { ssr: false });
+const MapScene = dynamic(() => import('@/components/MapScene'), { ssr: false });
 import { generateSampleInfrastructure, generateSampleAircraft } from '@/lib/3d-entities';
 import { generateSampleBoundaries, generateSampleAOIs, generateSampleSensorCones } from '@/lib/tactical-overlays';
 import AnalyticsPanel from './AnalyticsPanel';
-import DebugPanel, { useDebugPanelToggle } from '@/components/DebugPanel';
+const DebugPanel = dynamic(() => import('@/components/DebugPanel'), { ssr: false });
+import { useDebugPanelToggle } from '@/components/DebugPanel';
 import { useThrottledCallback } from '@/lib/hooks/usePerfStats';
 import LatticeLayout from '@/components/layout/LatticeLayout';
 import { TrackEntity } from '@/components/layout/EntityPanel';
