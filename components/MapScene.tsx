@@ -34,6 +34,9 @@ interface MapSceneProps {
   onCellClick?: (x: number, y: number) => void;
   onCellHover?: (x: number, y: number) => void;
   
+  // Diagnostic tracking
+  onMapLoad?: (success: boolean, error?: string) => void;
+  
   // Map bounds (lat/lng coordinates for the tactical area)
   bounds?: {
     north: number;
@@ -70,6 +73,7 @@ function MapScene({
   showLabels,
   onCellClick,
   onCellHover,
+  onMapLoad,
   bounds = DEFAULT_BOUNDS,
   infrastructure = [],
   aircraft = [],
@@ -78,6 +82,43 @@ function MapScene({
   aois = [],
   sensorCones = []
 }: MapSceneProps) {
+  // Minimal fallback map style (inline to avoid file serving issues)
+  const fallbackStyle = {
+    version: 8 as const,
+    name: "Minimal Dark Fallback",
+    sources: {
+      osm: {
+        type: "raster" as const,
+        tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+        tileSize: 256,
+        attribution: "© OpenStreetMap contributors",
+        maxzoom: 19
+      }
+    },
+    layers: [
+      {
+        id: "background",
+        type: "background" as const,
+        paint: { "background-color": "#0f172a" }
+      },
+      {
+        id: "osm-tiles",
+        type: "raster" as const,
+        source: "osm",
+        paint: {
+          "raster-opacity": 0.7,
+          "raster-brightness-min": 0.1,
+          "raster-brightness-max": 0.4,
+          "raster-contrast": 0.3,
+          "raster-saturation": -0.5
+        }
+      }
+    ]
+  };
+
+  // Map style configuration with fallback
+  const mapStyle = process.env.NEXT_PUBLIC_MAP_STYLE || fallbackStyle;
+  
   // Refs for ResizeObserver and DPR handling
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
@@ -798,8 +839,10 @@ function MapScene({
       >
         <ReactMapGL
           {...viewState}
-          mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+          mapStyle={mapStyle}
           style={{ width: '100%', height: '100%' }}
+          onLoad={() => onMapLoad?.(true)}
+          onError={(e) => onMapLoad?.(false, e?.error?.message || 'Map failed to load')}
         />
       </DeckGL>
       

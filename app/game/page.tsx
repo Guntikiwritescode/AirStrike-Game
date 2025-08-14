@@ -338,10 +338,10 @@ export default function GamePage() {
           const loaded = loadFromLocalStorage();
           updateStep('store', { status: 'success' });
 
-          // Step 3: Map data
-          updateStep('map', { status: 'running', details: 'Loading map bounds and entities...' });
+          // Step 3: Map data preparation
+          updateStep('map', { status: 'running', details: 'Preparing map data and tiles...' });
           await new Promise(resolve => setTimeout(resolve, 200));
-          updateStep('map', { status: 'success' });
+          // Map success/error will be handled by the onMapLoad callback
 
           // Step 4: Simulation worker
           updateStep('simWorker', { status: 'running', details: 'Initializing web worker...' });
@@ -509,6 +509,17 @@ export default function GamePage() {
                     showLabels={showLabels}
                     onCellClick={(x, y) => throttledCellClick(x, y, selectedSensor)}
                     onCellHover={throttledCellHover}
+                    onMapLoad={(success, error) => {
+                      if (success) {
+                        updateStep('map', { status: 'success' });
+                      } else {
+                        updateStep('map', { 
+                          status: 'error', 
+                          errorMessage: error || 'Map failed to load',
+                          details: 'Using fallback style'
+                        });
+                      }
+                    }}
                     bounds={mapBounds}
                     infrastructure={infrastructure}
                     aircraft={aircraft}
