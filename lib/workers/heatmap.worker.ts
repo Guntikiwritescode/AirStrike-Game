@@ -1,5 +1,7 @@
 /// <reference lib="webworker" />
 
+import { hasOffscreen } from './factory';
+
 interface HeatmapRequest {
   id: string;
   type: 'heatmap';
@@ -115,6 +117,11 @@ self.addEventListener('message', (event: MessageEvent<HeatmapRequest>) => {
   
   try {
     if (type === 'heatmap' && canvas) {
+      // Check OffscreenCanvas support before using
+      if (!hasOffscreen) {
+        throw new Error('OffscreenCanvas not supported in this environment');
+      }
+      
       // Setup canvas context
       const ctx = canvas.getContext('2d');
       if (!ctx) {

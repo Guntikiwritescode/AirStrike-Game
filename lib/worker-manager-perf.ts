@@ -8,6 +8,7 @@ import {
   LayerCalculationRequest,
   LayerCalculationResult 
 } from '@/lib/workers/performance.worker';
+import { createPerfWorker, getWorkerCapabilities, logWorkerCapabilities } from './workers/factory';
 
 export interface WorkerTask<TPayload = unknown, TResult = unknown> {
   id: string;
@@ -27,6 +28,7 @@ export class PerformanceWorkerManager {
   private activeTasks = new Map<string, WorkerTask<unknown, unknown>>();
   private workerIndex = 0;
   private isInitialized = false;
+  private isWorkerMode = true; // Track if we're using workers or fallback
 
   // Performance metrics
   private metrics = {
@@ -51,13 +53,18 @@ export class PerformanceWorkerManager {
   private async initializeWorkers(): Promise<void> {
     if (this.isInitialized) return;
 
+    // Log capabilities for debugging
+    logWorkerCapabilities();
+    const capabilities = getWorkerCapabilities();
+
     try {
-      // Initialize worker pool
+      // Initialize worker pool with factory
       for (let i = 0; i < this.workerCount; i++) {
-        const worker = new Worker(
-          new URL('../workers/performance.worker.ts', import.meta.url),
-          { type: 'module' }
-        );
+        const worker = createPerfWorker();
+
+        if (!worker) {
+          throw new Error('Performance worker creation failed');
+        }
 
         worker.onmessage = (event: MessageEvent<PerformanceWorkerResponse>) => {
           this.handleWorkerMessage(event.data);
@@ -72,9 +79,23 @@ export class PerformanceWorkerManager {
       }
 
       this.isInitialized = true;
+      this.isWorkerMode = true;
       this.processQueue();
+      console.log(`✅ Performance worker pool initialized with ${this.workers.length} workers`);
     } catch (error) {
-      console.error('Failed to initialize performance workers:', error);
+      console.warn('⚠️ Performance worker initialization failed, falling back to main thread:', error);
+      
+      // Clean up any partially created workers
+      this.workers.forEach(worker => worker.terminate());
+      this.workers = [];
+
+      // Fall back to main thread mode
+      this.isWorkerMode = false;
+      this.isInitialized = true;
+      
+      if (process.env.NEXT_PUBLIC_DEBUG === '1') {
+        console.warn('🔄 Performance calculations running in degraded mode');
+      }
     }
   }
 

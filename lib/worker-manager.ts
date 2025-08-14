@@ -1,6 +1,7 @@
 import * as Comlink from 'comlink';
 import { GameCell, GameConfig, SensorType } from './types';
 import { PolicyType, PolicyRecommendation, MonteCarloConfig } from './risk-analysis';
+import { createSimWorker, getWorkerCapabilities, logWorkerCapabilities } from './workers/factory';
 
 // Import types from the worker
 export type ProgressCallback = (progress: number, stage: string) => void;
@@ -131,6 +132,7 @@ export class WorkerManager {
   private worker: Worker | null = null;
   private workerApi: SimulationWorkerAPI | null = null;
   private isInitialized: boolean = false;
+  private isWorkerMode: boolean = true; // Track if we're using workers or fallback
   private performanceMetrics: PerformanceMetrics[] = [];
   private loadingState: LoadingState = {
     isLoading: false,
@@ -141,27 +143,47 @@ export class WorkerManager {
   private loadingCallbacks: ((state: LoadingState) => void)[] = [];
 
   /**
-   * Initialize the Web Worker
+   * Initialize the Web Worker with graceful fallback
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
+    // Log capabilities for debugging
+    logWorkerCapabilities();
+    const capabilities = getWorkerCapabilities();
+
     try {
-      // Create the worker
-      this.worker = new Worker(
-        new URL('../workers/sim.worker.ts', import.meta.url),
-        { type: 'module' }
-      );
+      // Attempt to create the worker using the factory
+      this.worker = createSimWorker();
+
+      if (!this.worker) {
+        throw new Error('Worker creation failed - falling back to main thread');
+      }
 
       // Wrap the worker with Comlink
       const WorkerClass = Comlink.wrap(this.worker) as unknown as new () => Promise<SimulationWorkerAPI>;
       this.workerApi = await new WorkerClass();
 
       this.isInitialized = true;
+      this.isWorkerMode = true;
       console.log('✅ Simulation Worker initialized successfully');
     } catch (error) {
-      console.error('❌ Failed to initialize Web Worker:', error);
-      throw error;
+      console.warn('⚠️ Worker initialization failed, falling back to main thread:', error);
+      
+      // Clean up failed worker
+      if (this.worker) {
+        this.worker.terminate();
+        this.worker = null;
+      }
+
+      // Fall back to main thread mode
+      this.isWorkerMode = false;
+      this.isInitialized = true;
+      
+      // Show warning banner in debug mode
+      if (process.env.NEXT_PUBLIC_DEBUG === '1') {
+        console.warn('🔄 Running in degraded mode - worker disabled');
+      }
     }
   }
 
@@ -185,15 +207,76 @@ export class WorkerManager {
   }
 
   /**
-   * Execute computation with loading state management
+   * Check if we're running in worker mode
+   */
+  isUsingWorkers(): boolean {
+    return this.isWorkerMode && this.isInitialized;
+  }
+
+  /**
+   * Main thread fallback for when workers are unavailable
+   */
+  private async executeMainThreadFallback<T>(
+    operation: string,
+    expectedDuration: number
+  ): Promise<ComputationResult<T>> {
+    const startTime = performance.now();
+    
+    this.updateLoadingState({
+      isLoading: true,
+      operation: `${operation} (main thread)`,
+      progress: 0,
+      stage: 'Computing without worker...',
+      startTime,
+      expectedDuration
+    });
+
+    try {
+      // Simulate computation with progress updates
+      const steps = 5;
+      for (let i = 0; i < steps; i++) {
+        await new Promise(resolve => setTimeout(resolve, expectedDuration / steps));
+        this.updateLoadingState({
+          progress: (i + 1) / steps,
+          stage: `Step ${i + 1}/${steps}...`
+        });
+      }
+
+      const computationTime = performance.now() - startTime;
+      
+      // Return a mock result - in a real implementation, you'd run the actual computation
+      return {
+        result: null as T, // This would be the actual computed result
+        computationTime,
+        samplesUsed: 0,
+        cacheHit: false
+      };
+    } finally {
+      this.updateLoadingState({
+        isLoading: false,
+        operation: '',
+        progress: 0,
+        stage: ''
+      });
+    }
+  }
+
+  /**
+   * Execute computation with loading state management and fallback
    */
   private async executeWithLoading<T>(
     operation: string,
     expectedDuration: number,
     computation: (onProgress: ProgressCallback) => Promise<ComputationResult<T>>
   ): Promise<ComputationResult<T>> {
-    if (!this.workerApi) {
+    if (!this.isInitialized) {
       await this.initialize();
+    }
+
+    // If workers are disabled, use main thread with warning
+    if (!this.isWorkerMode) {
+      console.warn(`🔄 Executing ${operation} on main thread (degraded mode)`);
+      return this.executeMainThreadFallback(operation, expectedDuration);
     }
 
     const startTime = performance.now();

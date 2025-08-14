@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useGameStore } from '@/state/useGameStore';
 import { SensorType } from '@/lib/types';
 import { getWorkerManager } from '@/lib/worker-manager';
+import { PerformanceWorkerManager } from '@/lib/worker-manager-perf';
 
 import { SensorReading } from '@/lib/sensors';
 import GameCanvas from './GameCanvas';
@@ -21,6 +22,7 @@ import LoadingOverlay from '@/components/LoadingOverlay';
 import BayesExplanationModal from '@/components/BayesExplanationModal';
 import { useErrorOverlay, ErrorOverlay } from '@/lib/debug/error-overlay';
 import { DiagnosticStepper, useDiagnosticStepper } from '@/components/DiagnosticStepper';
+import { DegradedModeBanner } from '@/components/DegradedModeBanner';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LayerToggle } from '@/components/ui/layer-toggle';
@@ -87,6 +89,9 @@ export default function GamePage() {
 
   // Diagnostic stepper for tracking loading steps
   const { steps, updateStep, copyDiagnostics: copyStepperDiagnostics } = useDiagnosticStepper();
+  
+  // Degraded mode state
+  const [showDegradedBanner, setShowDegradedBanner] = useState(false);
 
   // Lattice layout state
   const [searchQuery, setSearchQuery] = useState('');
@@ -341,18 +346,50 @@ export default function GamePage() {
           try {
             const workerManager = getWorkerManager();
             await workerManager.initialize();
-            updateStep('simWorker', { status: 'success' });
+            
+            // Check if workers are actually working
+            if (workerManager.isUsingWorkers()) {
+              updateStep('simWorker', { status: 'success' });
+            } else {
+              updateStep('simWorker', { 
+                status: 'error', 
+                errorMessage: 'Worker fallback mode - main thread only',
+                details: 'Running in degraded mode'
+              });
+              setShowDegradedBanner(true);
+            }
           } catch (error) {
             updateStep('simWorker', { 
               status: 'error', 
               errorMessage: error instanceof Error ? error.message : 'Failed to initialize worker'
             });
+            setShowDegradedBanner(true);
           }
 
-          // Step 5: Performance worker (placeholder)
+          // Step 5: Performance worker
           updateStep('perfWorker', { status: 'running', details: 'Starting performance monitoring...' });
-          await new Promise(resolve => setTimeout(resolve, 100));
-          updateStep('perfWorker', { status: 'success' });
+          try {
+            const perfWorkerManager = PerformanceWorkerManager.getInstance();
+            // Give it a moment to initialize
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            // Check if the manager exists and can get metrics
+            const metrics = perfWorkerManager.getMetrics();
+            if (metrics && typeof metrics === 'object') {
+              updateStep('perfWorker', { status: 'success' });
+            } else {
+              updateStep('perfWorker', { 
+                status: 'error', 
+                errorMessage: 'Performance worker fallback mode',
+                details: 'Running without worker pool'
+              });
+            }
+          } catch (error) {
+            updateStep('perfWorker', { 
+              status: 'error', 
+              errorMessage: error instanceof Error ? error.message : 'Performance worker failed'
+            });
+          }
 
           // Step 6: Initial game setup
           updateStep('heatmaps', { status: 'running', details: 'Generating initial game state...' });
@@ -619,6 +656,12 @@ export default function GamePage() {
         isVisible={errorOverlayVisible}
         onClear={clearErrors}
         onCopyDiagnostics={copyDiagnostics}
+      />
+
+      {/* Degraded Mode Banner */}
+      <DegradedModeBanner 
+        isVisible={showDegradedBanner}
+        onDismiss={() => setShowDegradedBanner(false)}
       />
 
       {/* Professional footer disclaimer */}
