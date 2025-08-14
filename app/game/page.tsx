@@ -19,6 +19,8 @@ import { LogEvent } from '@/components/layout/EventLog';
 import { useKeyboardShortcuts, KeyboardShortcutsHelp } from '@/lib/hooks/useKeyboardShortcuts';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import BayesExplanationModal from '@/components/BayesExplanationModal';
+import { useErrorOverlay, ErrorOverlay } from '@/lib/debug/error-overlay';
+import { DiagnosticStepper, useDiagnosticStepper } from '@/components/DiagnosticStepper';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LayerToggle } from '@/components/ui/layer-toggle';
@@ -79,6 +81,12 @@ export default function GamePage() {
 
   // Performance monitoring
   const [debugVisible, toggleDebug] = useDebugPanelToggle();
+
+  // Error overlay for debugging
+  const { errors, isVisible: errorOverlayVisible, clearErrors, copyDiagnostics } = useErrorOverlay();
+
+  // Diagnostic stepper for tracking loading steps
+  const { steps, updateStep, copyDiagnostics: copyStepperDiagnostics } = useDiagnosticStepper();
 
   // Lattice layout state
   const [searchQuery, setSearchQuery] = useState('');
@@ -311,12 +319,63 @@ export default function GamePage() {
   // Initialize game on mount
   useEffect(() => {
     if (!mounted) {
-      setMounted(true);
-      const loaded = loadFromLocalStorage();
-      // If loading from localStorage failed or there's no saved state, initialize a new game
-      if (!loaded) {
-        initializeGame();
-      }
+      const initializeApp = async () => {
+        try {
+          // Step 1: Fonts (simulate checking if fonts are loaded)
+          updateStep('fonts', { status: 'running', details: 'Checking font loading...' });
+          await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to show the step
+          updateStep('fonts', { status: 'success' });
+
+          // Step 2: Store initialization
+          updateStep('store', { status: 'running', details: 'Loading game state...' });
+          const loaded = loadFromLocalStorage();
+          updateStep('store', { status: 'success' });
+
+          // Step 3: Map data
+          updateStep('map', { status: 'running', details: 'Loading map bounds and entities...' });
+          await new Promise(resolve => setTimeout(resolve, 200));
+          updateStep('map', { status: 'success' });
+
+          // Step 4: Simulation worker
+          updateStep('simWorker', { status: 'running', details: 'Initializing web worker...' });
+          try {
+            const workerManager = getWorkerManager();
+            await workerManager.initialize();
+            updateStep('simWorker', { status: 'success' });
+          } catch (error) {
+            updateStep('simWorker', { 
+              status: 'error', 
+              errorMessage: error instanceof Error ? error.message : 'Failed to initialize worker'
+            });
+          }
+
+          // Step 5: Performance worker (placeholder)
+          updateStep('perfWorker', { status: 'running', details: 'Starting performance monitoring...' });
+          await new Promise(resolve => setTimeout(resolve, 100));
+          updateStep('perfWorker', { status: 'success' });
+
+          // Step 6: Initial game setup
+          updateStep('heatmaps', { status: 'running', details: 'Generating initial game state...' });
+          if (!loaded) {
+            initializeGame();
+          }
+          updateStep('heatmaps', { status: 'success' });
+
+          setMounted(true);
+        } catch (error) {
+          console.error('Initialization error:', error);
+          // Find the currently running step and mark it as errored
+          const runningStepId = steps.find(s => s.status === 'running')?.id;
+          if (runningStepId) {
+            updateStep(runningStepId, { 
+              status: 'error', 
+              errorMessage: error instanceof Error ? error.message : 'Unknown error'
+            });
+          }
+        }
+      };
+
+      initializeApp();
       return;
     }
 
@@ -334,7 +393,7 @@ export default function GamePage() {
     return () => {
       unsubscribe();
     };
-  }, [mounted, loadFromLocalStorage]);
+  }, [mounted, loadFromLocalStorage, updateStep, initializeGame, steps]);
 
   // Save to localStorage when game state changes
   useEffect(() => {
@@ -348,7 +407,10 @@ export default function GamePage() {
   if (!mounted) {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center">
-        <div className="text-muted">Loading tactical interface...</div>
+        <DiagnosticStepper 
+          steps={steps} 
+          onCopyDiagnostics={copyStepperDiagnostics}
+        />
       </div>
     );
   }
@@ -549,6 +611,14 @@ export default function GamePage() {
       <KeyboardShortcutsHelp 
         isOpen={showKeyboardHelp} 
         onClose={() => setShowKeyboardHelp(false)} 
+      />
+
+      {/* Error Overlay for Debug Mode */}
+      <ErrorOverlay 
+        errors={errors}
+        isVisible={errorOverlayVisible}
+        onClear={clearErrors}
+        onCopyDiagnostics={copyDiagnostics}
       />
 
       {/* Professional footer disclaimer */}
