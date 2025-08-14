@@ -434,26 +434,17 @@ function MapScene({
       minZoom: 0,
       maxZoom: 23,
       strategy: 'no-overlap',
-      // Try external elevation data first, with procedural fallback
-      elevationData: process.env.NODE_ENV === 'development' 
-        ? createHeightMapDataURL(proceduralTerrain, bounds)
-        : 'https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png',
+      // Use procedural terrain for now since external elevation tiles are not available
+      elevationData: createHeightMapDataURL(proceduralTerrain, bounds),
       texture: showLabels 
         ? 'https://tile.opentopomap.org/{z}/{x}/{y}.png'
         : undefined,
-      elevationDecoder: process.env.NODE_ENV === 'development'
-        ? {
-            rScaler: 1,
-            gScaler: 1,
-            bScaler: 1,
-            offset: 0
-          }
-        : {
-            rScaler: 256,
-            gScaler: 1,
-            bScaler: 1 / 256,
-            offset: -32768
-          },
+      elevationDecoder: {
+        rScaler: 1,
+        gScaler: 1,
+        bScaler: 1,
+        offset: 0
+      },
       color: showLabels ? [255, 255, 255] : [40, 60, 80], // Tactical tint when no labels
       opacity: 0.8,
       wireframe: false
@@ -761,11 +752,6 @@ function MapScene({
       >
         <ReactMapGL
           {...viewState}
-          onMove={(evt) => setViewState({
-            ...evt.viewState,
-            minZoom: viewState.minZoom,
-            maxZoom: viewState.maxZoom
-          })}
           mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
           style={{ width: '100%', height: '100%' }}
         />

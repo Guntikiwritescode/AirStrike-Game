@@ -97,12 +97,10 @@ const heightMapURL = createHeightMapDataURL(terrain, bounds);
 
 ### 4. MapScene Integration (`/components/MapScene.tsx`)
 
-**Conditional Asset Loading**:
+**Procedural Asset Loading**:
 ```typescript
-// Development mode uses procedural assets
-elevationData: process.env.NODE_ENV === 'development' 
-  ? createHeightMapDataURL(proceduralTerrain, bounds)
-  : 'https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png'
+// Using procedural terrain generation for elevation data
+elevationData: createHeightMapDataURL(proceduralTerrain, bounds)
 ```
 
 **Fallback Infrastructure**:
