@@ -10,15 +10,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Core tactical ops palette
+        // Core tactical ops palette (Lattice vibe)
         bg: "#0B0F14",
         panel: "#0E131A", 
         panel2: "#121924",
         ink: "#E6EDF3",
         accent2: "#20C6F7",
         warn: "#FF6B6B",
-        warn2: "#FF8A8A",
-        ok: "#84F7A8",
         grid: "#1B2430",
         
         // shadcn/ui compatibility
@@ -49,16 +47,17 @@ export default {
       },
       
       fontSize: {
-        xs: ["12px", { lineHeight: "16px" }],    // 12px as specified
-        sm: ["13px", { lineHeight: "18px" }],    // 13px as specified  
-        base: ["14px", { lineHeight: "20px" }],  // 14px as specified
-        lg: ["16px", { lineHeight: "24px" }],    // 16px as specified
-        xl: ["20px", { lineHeight: "28px" }],    // 20px as specified
-        "2xl": ["28px", { lineHeight: "36px" }], // 28px as specified
-        // Additional tactical sizes
-        stat: ["13px", { lineHeight: "18px", fontFamily: "var(--font-jetbrains)" }],
-        callsign: ["12px", { lineHeight: "16px", fontFamily: "var(--font-jetbrains)" }],
-        telemetry: ["11px", { lineHeight: "14px", fontFamily: "var(--font-jetbrains)" }],
+        // Responsive typography scale with clamp
+        xs: ["clamp(11px, 2.5vw, 12px)", { lineHeight: "1.4" }],
+        sm: ["clamp(12px, 2.8vw, 13px)", { lineHeight: "1.4" }],
+        base: ["clamp(13px, 3vw, 14px)", { lineHeight: "1.4" }],
+        lg: ["clamp(15px, 3.5vw, 16px)", { lineHeight: "1.5" }],
+        xl: ["clamp(18px, 4vw, 20px)", { lineHeight: "1.4" }],
+        "2xl": ["clamp(24px, 5vw, 28px)", { lineHeight: "1.3" }],
+        // Tactical monospace for telemetry/data
+        telemetry: ["clamp(11px, 2.5vw, 12px)", { lineHeight: "1.2", fontFamily: "var(--font-jetbrains)" }],
+        stat: ["clamp(12px, 2.8vw, 13px)", { lineHeight: "1.2", fontFamily: "var(--font-jetbrains)" }],
+        callsign: ["clamp(11px, 2.5vw, 12px)", { lineHeight: "1.2", fontFamily: "var(--font-jetbrains)" }],
       },
       
       boxShadow: {
@@ -73,7 +72,27 @@ export default {
       },
       
       borderRadius: {
-        xl2: "1rem",
+        DEFAULT: "0.5rem",     // 8px - default tactical radius
+        lg: "0.75rem",         // 12px
+        xl: "1rem",            // 16px  
+        "2xl": "1rem",         // 16px - tactical panels
+        "3xl": "1.5rem",       // 24px - large panels
+      },
+      
+      spacing: {
+        // 8px grid system
+        px: "1px",
+        0: "0",
+        1: "0.125rem",    // 2px
+        2: "0.25rem",     // 4px  
+        3: "0.5rem",      // 8px  - base unit
+        4: "0.75rem",     // 12px
+        5: "1rem",        // 16px
+        6: "1.5rem",      // 24px
+        7: "2rem",        // 32px
+        8: "2.5rem",      // 40px
+        9: "3rem",        // 48px
+        10: "4rem",       // 64px
       },
       
       animation: {
@@ -107,26 +126,39 @@ export default {
     // Custom plugin for tactical ops utilities
     function({ addUtilities }: any) {
       addUtilities({
-        '.card': {
-          '@apply bg-panel rounded-2xl p-4 border border-grid/40': {},
+        // Tactical UI components
+        '.tactical-card': {
+          '@apply bg-panel rounded-2xl p-5 border border-grid/40 shadow-none': {},
         },
-        '.stat': {
-          '@apply font-mono text-sm text-ink/90 tabular-nums': {},
+        '.tactical-panel': {
+          '@apply bg-panel2 rounded-2xl p-4 border border-grid/40': {},
         },
-        '.btn': {
-          '@apply rounded-xl bg-panel2 hover:bg-panel border border-grid/50 transition-colors duration-fast': {},
+        '.tactical-stat': {
+          '@apply font-mono text-stat text-ink tabular-nums tracking-wide': {},
         },
-        '.glyph': {
+        '.tactical-btn': {
+          '@apply rounded-xl bg-panel2 hover:bg-panel border border-grid/40 transition-colors duration-150 px-4 py-2': {},
+        },
+        '.tactical-btn-primary': {
+          '@apply rounded-xl bg-accent text-bg hover:bg-accent2 border-0 transition-colors duration-150 px-4 py-2 font-medium': {},
+        },
+        '.tactical-input': {
+          '@apply bg-input border border-grid/40 rounded-xl px-3 py-2 text-ink placeholder-muted focus:border-accent focus:ring-1 focus:ring-accent': {},
+        },
+        '.tactical-header': {
+          '@apply text-ink font-medium text-lg mb-4': {},
+        },
+        '.tactical-subheader': {
+          '@apply text-muted font-medium text-sm mb-3 uppercase tracking-wider': {},
+        },
+        '.tactical-divider': {
+          '@apply border-t border-grid/40 my-4': {},
+        },
+        '.tactical-glyph': {
           '@apply text-accent drop-shadow-sm': {},
         },
-        '.panel-header': {
-          '@apply text-ink font-medium text-base mb-3': {},
-        },
-        '.divider': {
-          '@apply border-t border-grid/40 my-3': {},
-        },
-        '.focus-ring': {
-          '@apply focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg': {},
+        '.tactical-focus': {
+          '@apply focus:outline-none focus:ring-2 focus:ring-accent/50 focus:ring-offset-2 focus:ring-offset-bg rounded': {},
         },
       });
     }

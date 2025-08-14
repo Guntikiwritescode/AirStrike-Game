@@ -1,19 +1,28 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useGameStore } from '@/state/useGameStore';
 import { SensorType } from '@/lib/types';
 import { getWorkerManager } from '@/lib/worker-manager';
-import { useKeyboardShortcuts, KeyboardShortcut } from '@/components/KeyboardShortcuts';
+
 import { SensorReading } from '@/lib/sensors';
 import GameCanvas from './GameCanvas';
+import MapScene from '@/components/MapScene';
+import { generateSampleInfrastructure, generateSampleAircraft } from '@/lib/3d-entities';
+import { generateSampleBoundaries, generateSampleAOIs, generateSampleSensorCones } from '@/lib/tactical-overlays';
 import AnalyticsPanel from './AnalyticsPanel';
+import DebugPanel, { useDebugPanelToggle } from '@/components/DebugPanel';
+import { useThrottledCallback } from '@/lib/hooks/usePerfStats';
+import LatticeLayout from '@/components/layout/LatticeLayout';
+import { TrackEntity } from '@/components/layout/EntityPanel';
+import { LogEvent } from '@/components/layout/EventLog';
+import { useKeyboardShortcuts, KeyboardShortcutsHelp } from '@/lib/hooks/useKeyboardShortcuts';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import BayesExplanationModal from '@/components/BayesExplanationModal';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LayerToggle } from '@/components/ui/layer-toggle';
-import { DebugPanel } from '@/components/ui/debug-panel';
+
 import { AccordionControlPanel } from '@/components/ui/accordion-control-panel';
 import { tacticalToast } from '@/components/ui/toast-provider';
 import { HeatmapType } from '@/lib/types';
@@ -64,7 +73,188 @@ export default function GamePage() {
   
   // Layer and debug state
   const [activeLayer, setActiveLayer] = useState<HeatmapType>('posterior');
-  const [showDebugPanel, setShowDebugPanel] = useState(false);
+
+  const [showLabels, setShowLabels] = useState(false);
+  const [use3DMap, setUse3DMap] = useState(true);
+
+  // Performance monitoring
+  const [debugVisible, toggleDebug] = useDebugPanelToggle();
+
+  // Lattice layout state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [events, setEvents] = useState<LogEvent[]>([]);
+  
+  // UI polish state
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+
+  // Generate 3D entities and tactical overlays for demonstration
+  const mapBounds = {
+    north: 40.7829, south: 40.7489, east: -73.9441, west: -73.9901
+  };
+  const infrastructure = generateSampleInfrastructure(grid, mapBounds);
+  const { aircraft, flightPaths } = generateSampleAircraft(mapBounds);
+  const boundaries = generateSampleBoundaries(mapBounds);
+  const aois = generateSampleAOIs(mapBounds);
+  const sensorCones = generateSampleSensorCones(mapBounds, infrastructure);
+
+  // Convert game entities to track entities
+  const trackEntities: TrackEntity[] = [
+    ...infrastructure.map(infra => ({
+      id: infra.id,
+      name: infra.id.replace(/-/g, ' ').toUpperCase(),
+      type: 'infrastructure' as const,
+      classification: infra.isDestroyed ? 'unknown' as const : 'hostile' as const,
+      position: [infra.position[1], infra.position[0]] as [number, number], // Swap for lat/lng
+      lastSeen: Date.now() - Math.random() * 300000,
+      confidence: 0.85 + Math.random() * 0.15,
+      priority: 'high' as const,
+      status: infra.isDestroyed ? 'destroyed' as const : 'active' as const
+    })),
+    ...aircraft.map(craft => ({
+      id: craft.id,
+      name: craft.id.replace(/-/g, ' ').toUpperCase(),
+      type: 'aircraft' as const,
+      classification: craft.isHostile ? 'hostile' as const : 'friendly' as const,
+      position: [craft.position[1], craft.position[0]] as [number, number], // Swap for lat/lng
+      altitude: craft.altitude,
+      speed: craft.speed * 1.94384, // m/s to knots
+      heading: craft.heading * 180 / Math.PI, // radians to degrees
+      lastSeen: Date.now() - Math.random() * 60000,
+      confidence: 0.90 + Math.random() * 0.10,
+      priority: craft.isHostile ? 'high' as const : 'medium' as const,
+      status: 'active' as const
+    }))
+  ];
+
+  // Throttled event handlers for performance
+  const throttledCellHover = useThrottledCallback((x: number, y: number) => {
+    setSelectedCell({ x, y });
+  }, 16); // 60fps throttling
+
+  const throttledCellClick = useThrottledCallback((x: number, y: number, sensor: SensorType) => {
+    setSelectedCell({ x, y });
+    handleRecon(x, y, sensor);
+  }, 50); // Slightly slower for click to avoid double-triggers
+
+  // Lattice layout handlers
+  const handleEntitySelect = useCallback((entity: TrackEntity) => {
+    // Find corresponding cell position if needed
+    console.log('Entity selected:', entity);
+  }, []);
+
+  const handleEntityFocus = useCallback((entity: TrackEntity) => {
+    // Focus map on entity position
+    console.log('Focus on entity:', entity);
+  }, []);
+
+  const handleLatticeReconAction = useCallback((entityId: string, sensorType: string) => {
+    // Add event log entry
+    const newEvent: LogEvent = {
+      id: `evt_${Date.now()}`,
+      timestamp: Date.now(),
+      type: 'recon',
+      action: `${sensorType.toUpperCase()}_SCAN_INITIATED`,
+      entity: entityId,
+      deltaScore: 0.05,
+      details: 'Scan started',
+      severity: 'info'
+    };
+    setEvents(prev => [newEvent, ...prev]);
+    console.log('Recon action:', entityId, sensorType);
+  }, []);
+
+  const handleLatticeStrikeAction = useCallback((entityId: string, weaponType: string) => {
+    // Add event log entry
+    const newEvent: LogEvent = {
+      id: `evt_${Date.now()}`,
+      timestamp: Date.now(),
+      type: 'strike',
+      action: `${weaponType.toUpperCase()}_STRIKE_EXECUTED`,
+      entity: entityId,
+      deltaScore: -0.85,
+      details: 'Strike completed',
+      severity: 'success'
+    };
+    setEvents(prev => [newEvent, ...prev]);
+    console.log('Strike action:', entityId, weaponType);
+  }, []);
+
+  const handleTimeControlChange = useCallback((action: 'play' | 'pause' | 'step' | 'reset') => {
+    const newEvent: LogEvent = {
+      id: `evt_${Date.now()}`,
+      timestamp: Date.now(),
+      type: 'system',
+      action: `SIMULATION_${action.toUpperCase()}`,
+      details: `Simulation ${action}`,
+      severity: 'info'
+    };
+    setEvents(prev => [newEvent, ...prev]);
+    
+    // Handle game controls
+    switch (action) {
+      case 'play':
+        if (!gameStarted) startGame();
+        break;
+      case 'pause':
+        // Pause logic if needed
+        break;
+      case 'step':
+        // Step logic if needed
+        break;
+      case 'reset':
+        endGame();
+        initializeGame();
+        break;
+    }
+  }, [gameStarted, startGame, endGame, initializeGame]);
+
+  const handleClearLog = useCallback(() => {
+    setEvents([]);
+  }, []);
+
+  const handleExportLog = useCallback(() => {
+    const logData = JSON.stringify(events, null, 2);
+    const blob = new Blob([logData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tactical-log-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [events]);
+
+  // Keyboard shortcuts integration
+  useKeyboardShortcuts({
+    onSensorChange: setSelectedSensor,
+    onViewModeChange: setActiveLayer,
+    onStrikeMode: () => {
+      // Strike mode indication
+      const newEvent: LogEvent = {
+        id: `evt_${Date.now()}`,
+        timestamp: Date.now(),
+        type: 'user',
+        action: 'STRIKE_MODE_ACTIVATED',
+        details: 'Ready for kinetic engagement',
+        severity: 'warning'
+      };
+      setEvents(prev => [newEvent, ...prev]);
+    },
+    onToggleLabels: () => setShowLabels(!showLabels),
+    onToggleDebug: toggleDebug,
+    onToggleHelp: () => setShowKeyboardHelp(!showKeyboardHelp),
+    onPlayPause: () => {
+      if (gameStarted) {
+        endGame();
+      } else {
+        startGame();
+      }
+    },
+    onCancel: () => {
+      setSelectedCell(null);
+      setShowKeyboardHelp(false);
+    },
+    enabled: true
+  });
 
   // Handle recon action
   const handleRecon = async (x: number, y: number, sensor: SensorType) => {
@@ -153,22 +343,7 @@ export default function GamePage() {
     }
   }, [grid, mounted, saveToLocalStorage]);
 
-  // Keyboard shortcuts setup
-  const shortcuts: KeyboardShortcut[] = [
-    { key: '1', label: 'Drone Sensor', description: 'Switch to Drone sensor', action: () => setSelectedSensor('drone'), category: 'Sensors' },
-    { key: '2', label: 'SIGINT Sensor', description: 'Switch to SIGINT sensor', action: () => setSelectedSensor('sigint'), category: 'Sensors' },
-    { key: '3', label: 'Ground Sensor', description: 'Switch to Ground sensor', action: () => setSelectedSensor('ground'), category: 'Sensors' },
-    { key: 'e', label: 'Expected Value', description: 'Show Expected Value heatmap', action: () => setActiveLayer('expectedValue'), category: 'Layers' },
-    { key: 'v', label: 'Value of Information', description: 'Show Value of Information heatmap', action: () => setActiveLayer('valueOfInformation'), category: 'Layers' },
-    { key: 'r', label: 'Risk Layer', description: 'Show Risk heatmap', action: () => setActiveLayer('riskAverse'), category: 'Layers' },
-    { key: 'p', label: 'Posterior Layer', description: 'Show Posterior heatmap', action: () => setActiveLayer('posterior'), category: 'Layers' },
-    { key: 's', label: 'Strike', description: 'Strike selected cell', action: () => selectedCell && handleStrike(selectedCell.x, selectedCell.y), category: 'Actions', disabled: !selectedCell },
-    { key: 't', label: 'Toggle Timeline', description: 'Toggle timeline panel', action: () => setTimelineCollapsed(!timelineCollapsed), category: 'UI' },
-    { key: 'd', label: 'Debug Panel', description: 'Toggle debug panel', action: () => setShowDebugPanel(!showDebugPanel), category: 'Debug' },
-    { key: 'Escape', label: 'Clear Selection', description: 'Clear selection', action: () => setSelectedCell(null), category: 'Actions' }
-  ];
 
-  useKeyboardShortcuts(shortcuts);
 
   if (!mounted) {
     return (
@@ -180,59 +355,100 @@ export default function GamePage() {
 
   return (
     <div className="min-h-screen bg-bg text-ink font-sans">
-      {/* Main tactical ops layout */}
-      <div className="flex h-screen">
-        {/* Left: Map area (fills available space) */}
-        <div className="flex-1 flex flex-col min-w-0">
+      {/* Lattice Layout */}
+      <LatticeLayout
+        onEntitySelect={handleEntitySelect}
+        onEntityFocus={handleEntityFocus}
+        onReconAction={handleLatticeReconAction}
+        onStrikeAction={handleLatticeStrikeAction}
+        onSeedChange={(seed) => console.log('Seed changed:', seed)}
+        onTimeControlChange={handleTimeControlChange}
+        onQuickSearch={setSearchQuery}
+        onClearLog={handleClearLog}
+        onExportLog={handleExportLog}
+        searchQuery={searchQuery}
+        entities={trackEntities}
+        events={events}
+      >
+        {/* Map area content */}
+        <div className="w-full h-full flex flex-col">
           {/* Map header with overlay toggles */}
-          <div className="card m-3 mb-0">
+          <div className="tactical-card m-5 mb-0">
             <div className="flex justify-between items-center">
-              <div className="panel-header mb-0">Tactical Map</div>
-              <LayerToggle
-                activeLayer={activeLayer}
-                onLayerChange={setActiveLayer}
-                disabled={!gameStarted}
-              />
+              <div className="tactical-header mb-0">Tactical Map</div>
+              <div className="flex items-center gap-3">
+                <LayerToggle
+                  activeLayer={activeLayer}
+                  onLayerChange={setActiveLayer}
+                  showLabels={showLabels}
+                  onLabelsChange={setShowLabels}
+                  disabled={!gameStarted}
+                />
+                <Button
+                  variant={use3DMap ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setUse3DMap(!use3DMap)}
+                  className="font-mono text-xs uppercase tracking-wider"
+                  title={use3DMap ? 'Switch to 2D canvas' : 'Switch to 3D terrain'}
+                >
+                  {use3DMap ? '3D' : '2D'}
+                </Button>
+              </div>
             </div>
           </div>
 
           {/* Map canvas area */}
-          <div className="flex-1 m-3 mt-2">
-            <div className="card h-full p-2">
-              <GameCanvas 
-                selectedSensor={selectedSensor}
-                onSensorChange={setSelectedSensor}
-                onCellClick={(x, y) => {
-                  setSelectedCell({ x, y });
-                  handleRecon(x, y, selectedSensor);
-                }}
-                onCellRightClick={(x, y) => {
-                  setSelectedCell({ x, y });
-                  handleStrike(x, y);
-                }}
-                onCellHighlight={(x, y) => {
-                  setSelectedCell({ x, y });
-                }}
-                onClearHighlight={() => {
-                  setSelectedCell(null);
-                }}
-              />
+          <div className="flex-1 m-5 mt-3">
+            <div className="tactical-card h-full p-3">
+                              {use3DMap ? (
+                  <MapScene
+                    grid={grid}
+                    config={config}
+                    viewMode={activeLayer}
+                    showLabels={showLabels}
+                    onCellClick={(x, y) => throttledCellClick(x, y, selectedSensor)}
+                    onCellHover={throttledCellHover}
+                    bounds={mapBounds}
+                    infrastructure={infrastructure}
+                    aircraft={aircraft}
+                    flightPaths={flightPaths}
+                    boundaries={boundaries}
+                    aois={aois}
+                    sensorCones={sensorCones}
+                  />
+                ) : (
+                <GameCanvas 
+                  selectedSensor={selectedSensor}
+                  onSensorChange={setSelectedSensor}
+                  onCellClick={(x, y) => throttledCellClick(x, y, selectedSensor)}
+                  onCellRightClick={(x, y) => {
+                    setSelectedCell({ x, y });
+                    handleStrike(x, y);
+                  }}
+                  onCellHighlight={(x, y) => {
+                    setSelectedCell({ x, y });
+                  }}
+                  onClearHighlight={() => {
+                    setSelectedCell(null);
+                  }}
+                />
+              )}
             </div>
           </div>
         </div>
 
         {/* Right: Control Panel (collapsible) */}
-        <div className={`bg-panel2 border-l border-grid/40 transition-all duration-medium ${
+        <div className={`bg-panel2 border-l border-grid/40 transition-all duration-300 ${
           rightPanelCollapsed ? 'w-12' : 'w-80'
         } flex flex-col`}>
           {/* Panel header */}
-          <div className="p-3 border-b border-grid/40 flex justify-between items-center">
-            {!rightPanelCollapsed && <div className="panel-header mb-0">Mission Control</div>}
+          <div className="p-5 border-b border-grid/40 flex justify-between items-center">
+            {!rightPanelCollapsed && <div className="tactical-header mb-0">Mission Control</div>}
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setRightPanelCollapsed(!rightPanelCollapsed)}
-              className="w-8 h-8 p-0"
+              className="w-8 h-8 p-0 tactical-focus"
             >
               {rightPanelCollapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </Button>
@@ -240,7 +456,7 @@ export default function GamePage() {
 
                     {/* Panel content */}
           {!rightPanelCollapsed && (
-            <div className="flex-1 overflow-y-auto p-3">
+            <div className="flex-1 overflow-y-auto p-5">
               <AccordionControlPanel
                 selectedSensor={selectedSensor}
                 onSensorChange={setSelectedSensor}
@@ -271,7 +487,7 @@ export default function GamePage() {
             </div>
           )}
         </div>
-      </div>
+      </LatticeLayout>
 
       {/* Bottom: Timeline/Analytics tray (collapsible) */}
       <div className={`bg-panel border-t border-grid/40 transition-all duration-medium ${
@@ -326,15 +542,21 @@ export default function GamePage() {
       {/* Loading Overlay for Web Worker Operations */}
       <LoadingOverlay loadingState={workerLoadingState} />
 
-      {/* Debug Panel */}
-      <DebugPanel
-        isOpen={showDebugPanel}
-        onClose={() => setShowDebugPanel(false)}
+      {/* Performance Debug Panel */}
+      <DebugPanel isVisible={debugVisible} onToggle={toggleDebug} />
+
+      {/* Keyboard Shortcuts Help */}
+      <KeyboardShortcutsHelp 
+        isOpen={showKeyboardHelp} 
+        onClose={() => setShowKeyboardHelp(false)} 
       />
 
-      {/* Ethics footer */}
-      <div className="fixed bottom-2 left-2 text-xs text-muted/60 font-mono">
-        Fictional, abstract decision-making simulation. No real-world guidance.
+      {/* Professional footer disclaimer */}
+      <div className="fixed bottom-4 left-4 text-xs text-muted/60 font-mono bg-panel/80 backdrop-blur-sm px-3 py-2 rounded-lg border border-grid/20">
+        <div className="flex items-center space-x-2">
+          <div className="w-2 h-2 bg-warn/60 rounded-full animate-pulse"></div>
+          <span>Fictional, abstract simulation • No real-world guidance</span>
+        </div>
       </div>
     </div>
   );

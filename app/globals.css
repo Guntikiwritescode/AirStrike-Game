@@ -3,7 +3,7 @@
 :root {
   color-scheme: dark;
   
-  /* Tactical ops color tokens */
+  /* Lattice tactical color tokens */
   --color-bg: #0B0F14;
   --color-panel: #0E131A;
   --color-panel-2: #121924;
@@ -12,9 +12,50 @@
   --color-accent: #55E3FF;
   --color-accent-2: #20C6F7;
   --color-warn: #FF6B6B;
-  --color-warn-2: #FF8A8A;
-  --color-ok: #84F7A8;
   --color-grid: #1B2430;
+  
+  /* Tactical status colors */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-info: #fbbf24;
+  --color-white: #ffffff;
+  
+  /* Chart and data visualization colors */
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-400: #94a3b8;
+  --color-blue-500: #3b82f6;
+  --color-red-500: #ef4444;
+  --color-amber-500: #f59e0b;
+  
+  /* Heatmap color schemes - for d3-scale compatibility */
+  --heatmap-value-1: #0891b2;
+  --heatmap-value-2: #0284c7;
+  --heatmap-value-3: #3b82f6;
+  --heatmap-value-4: #6366f1;
+  --heatmap-value-5: #8b5cf6;
+  --heatmap-value-6: #a855f7;
+  
+  --heatmap-risk-1: #fed7aa;
+  --heatmap-risk-2: #fdba74;
+  --heatmap-risk-3: #fb923c;
+  --heatmap-risk-4: #f97316;
+  --heatmap-risk-5: #ea580c;
+  --heatmap-risk-6: #dc2626;
+  
+  --heatmap-posterior-1: #1e3a8a;
+  --heatmap-posterior-2: #1e40af;
+  --heatmap-posterior-3: #2563eb;
+  --heatmap-posterior-4: #3b82f6;
+  --heatmap-posterior-5: #06b6d4;
+  --heatmap-posterior-6: #0891b2;
+  
+  --heatmap-variance-1: #581c87;
+  --heatmap-variance-2: #7c3aed;
+  --heatmap-variance-3: #8b5cf6;
+  --heatmap-variance-4: #a855f7;
+  --heatmap-variance-5: #c084fc;
+  --heatmap-variance-6: #e879f9;
   
   /* shadcn/ui CSS variables */
   --background: #0B0F14;
@@ -36,7 +77,7 @@
   --border: #1B2430;
   --input: #121924;
   --ring: #55E3FF;
-  --radius: 0.5rem;
+  --radius: 1rem;
 }
 
 * {
@@ -48,10 +89,16 @@ html, body {
   color: var(--color-ink);
   height: 100%;
   overflow-x: hidden;
+  /* 8px spacing grid base */
+  line-height: 1.4;
 }
 
 body {
   font-feature-settings: "rlig" 1, "calt" 1;
+  /* Enhanced font rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* Custom scrollbars */
@@ -94,4 +141,139 @@ body {
 canvas {
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
+}
+
+/* Professional micro-interactions and animations */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(85, 227, 255, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(85, 227, 255, 0.1); }
+}
+
+@keyframes subtleScale {
+  from { transform: scale(1.00); }
+  to { transform: scale(1.03); }
+}
+
+@keyframes slideInLeft {
+  from { transform: translateX(-20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideInUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Micro-hover effects */
+.micro-hover {
+  transition: all 160ms ease-out;
+  position: relative;
+}
+
+.micro-hover:hover {
+  transform: scale(1.03);
+}
+
+.micro-hover:hover::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(45deg, rgba(85, 227, 255, 0.1), rgba(85, 227, 255, 0.05));
+  z-index: -1;
+  opacity: 1;
+  transition: opacity 160ms ease-out;
+}
+
+.micro-hover::before {
+  opacity: 0;
+  transition: opacity 160ms ease-out;
+}
+
+/* Button micro-interactions */
+.btn-micro {
+  transition: all 140ms ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-micro:hover {
+  transform: translateY(-1px);
+}
+
+.btn-micro:active {
+  transform: translateY(0);
+  transition: all 80ms ease-out;
+}
+
+.btn-micro::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(85, 227, 255, 0.1);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 300ms ease-out, height 300ms ease-out;
+}
+
+.btn-micro:active::after {
+  width: 200%;
+  height: 200%;
+}
+
+/* Professional focus rings with 2px cyan */
+.focus-ring:focus,
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(85, 227, 255, 0.8);
+  transition: box-shadow 120ms ease-out;
+}
+
+/* Card hover effects */
+.card-hover {
+  transition: all 160ms ease-out;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+/* Input micro-interactions */
+.input-micro {
+  transition: all 140ms ease-out;
+}
+
+.input-micro:focus {
+  transform: scale(1.01);
+}
+
+/* Animation utility classes */
+.animate-slide-in-left {
+  animation: slideInLeft 300ms ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 300ms ease-out;
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 300ms ease-out;
+}
+
+/* Remove default button focus outline, use our custom focus rings */
+button:focus {
+  outline: none;
+}
+
+button:focus-visible {
+  outline: none;
 }

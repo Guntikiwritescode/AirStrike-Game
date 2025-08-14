@@ -4,10 +4,13 @@ import { useState } from 'react';
 import { Button } from './button';
 import { cn } from '@/lib/utils';
 import { HeatmapType } from '@/lib/types';
+import { Tags } from 'lucide-react';
 
 interface LayerToggleProps {
   activeLayer: HeatmapType;
   onLayerChange: (layer: HeatmapType) => void;
+  showLabels?: boolean;
+  onLabelsChange?: (show: boolean) => void;
   disabled?: boolean;
   className?: string;
 }
@@ -58,6 +61,8 @@ const layerConfig = {
 export function LayerToggle({
   activeLayer,
   onLayerChange,
+  showLabels = false,
+  onLabelsChange,
   disabled = false,
   className
 }: LayerToggleProps) {
@@ -66,7 +71,9 @@ export function LayerToggle({
   const layers = ['posterior', 'expectedValue', 'valueOfInformation', 'riskAverse'] as HeatmapType[];
 
   return (
-    <div className={cn('flex items-center gap-1', className)}>
+    <div className={cn('flex items-center gap-3', className)}>
+      {/* Layer selection buttons */}
+      <div className="flex items-center gap-1">
       {layers.map((layer) => {
         const config = layerConfig[layer];
         const isActive = activeLayer === layer;
@@ -111,6 +118,28 @@ export function LayerToggle({
           </div>
         );
       })}
+      </div>
+
+      {/* Labels toggle */}
+      {onLabelsChange && (
+        <div className="flex items-center">
+          <Button
+            variant={showLabels ? "default" : "ghost"}
+            size="sm"
+            onClick={() => onLabelsChange(!showLabels)}
+            disabled={disabled}
+            className={cn(
+              'px-3 py-1.5 font-mono text-xs uppercase tracking-wider transition-all duration-fast',
+              showLabels && 'bg-accent/10 text-accent border-accent/30',
+              !showLabels && 'text-muted hover:text-ink hover:bg-panel2/50'
+            )}
+            title={showLabels ? 'Hide map labels' : 'Show map labels'}
+          >
+            <Tags className="w-3 h-3 mr-1" />
+            LABELS
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

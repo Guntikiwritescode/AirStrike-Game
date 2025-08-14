@@ -119,7 +119,7 @@ export function drawWarnBoundary(
   ctx.save();
   
   // Set warning red color and style
-  ctx.strokeStyle = '#FF6B6B';
+  ctx.strokeStyle = 'var(--color-warn)';
   ctx.lineWidth = 2;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -141,7 +141,7 @@ export function drawJet(
   x: number,
   y: number,
   headingRad: number,
-  color: string = '#55E3FF',
+  color: string = 'var(--color-accent)',
   size: number = 12
 ): void {
   ctx.save();
@@ -164,7 +164,7 @@ export function drawJet(
   
   // Fill and stroke
   ctx.fillStyle = color;
-  ctx.strokeStyle = '#A7F1FF';
+  ctx.strokeStyle = 'var(--color-accent)';
   ctx.lineWidth = 1;
   ctx.fill();
   ctx.stroke();
@@ -223,7 +223,7 @@ export function drawCellHighlight(
 ): void {
   ctx.save();
   
-  const color = type === 'primary' ? '#55E3FF' : '#FF6B6B';
+  const color = type === 'primary' ? 'var(--color-accent)' : 'var(--color-warn)';
   const padding = 2;
   
   ctx.strokeStyle = color;

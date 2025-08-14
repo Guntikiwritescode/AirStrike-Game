@@ -217,10 +217,86 @@ export interface GameRunExport {
     infraPriorField: number[][];
   };
   
+  // 3D entities for rendering
+  entities: {
+    infrastructure: InfrastructureEntity[];
+    aircraft: AircraftEntity[];
+    flightPaths: FlightPath[];
+  };
+  
   // Performance metrics
   performanceMetrics: {
     totalComputationTime: number;
     workerCacheHitRate: number;
     averageDecisionTime: number;
   };
+}
+
+// 3D Entity Types for Infrastructure and Aircraft
+export interface InfrastructureEntity {
+  id: string;
+  type: 'tower' | 'dome' | 'building';
+  position: [number, number, number]; // [lng, lat, altitude]
+  rotation: [number, number, number]; // [pitch, yaw, roll] in radians
+  scale: number;
+  isDestroyed: boolean;
+  gridX: number;
+  gridY: number;
+}
+
+export interface AircraftEntity {
+  id: string;
+  type: 'fighter' | 'drone' | 'transport';
+  position: [number, number, number]; // [lng, lat, altitude]
+  heading: number; // radians
+  speed: number; // m/s
+  altitude: number; // meters above ground
+  isHostile: boolean;
+  flightPathId?: string;
+}
+
+export interface FlightPath {
+  id: string;
+  waypoints: FlightWaypoint[];
+  isActive: boolean;
+  aircraftId?: string;
+}
+
+export interface FlightWaypoint {
+  position: [number, number, number]; // [lng, lat, altitude]
+  timestamp: number;
+  speed: number;
+}
+
+// Tactical Overlay Types
+export interface TacticalBoundary {
+  id: string;
+  type: 'FEBA' | 'ROZ' | 'FLOT' | 'PL'; // Forward Edge of Battle Area, Restricted Operating Zone, Forward Line of Own Troops, Phase Line
+  name: string;
+  path: [number, number, number][]; // 3D path coordinates
+  color: [number, number, number, number];
+  dashLength: number;
+  animated: boolean;
+}
+
+export interface AreaOfInterest {
+  id: string;
+  name: string;
+  type: 'NAI' | 'TAI' | 'EA' | 'OBJECTIVE'; // Named Area of Interest, Target Area of Interest, Engagement Area, Objective
+  polygon: [number, number, number][]; // 3D polygon coordinates
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  description?: string;
+}
+
+export interface SensorCone {
+  id: string;
+  sensorId: string;
+  position: [number, number, number]; // [lng, lat, altitude]
+  bearing: number; // radians
+  fieldOfView: number; // radians (total FOV, not half-angle)
+  range: number; // meters
+  minRange?: number; // meters
+  sectorHeight: number; // meters (vertical extent)
+  confidence: number; // 0-1 for opacity/gradient
+  sensorType: SensorType;
 }

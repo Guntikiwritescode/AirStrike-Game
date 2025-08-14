@@ -27,8 +27,8 @@ export default function AnalyticsPanel() {
         
         {/* Recent Activity Summary */}
         {eventLog.length > 0 && (
-          <div className="bg-slate-700 rounded-lg p-4">
-            <h4 className="font-medium mb-3 flex items-center">
+          <div className="tactical-panel">
+            <h4 className="tactical-subheader flex items-center">
               <Activity className="w-4 h-4 mr-2" />
               Recent Activity
             </h4>
@@ -36,14 +36,14 @@ export default function AnalyticsPanel() {
               {eventLog.slice(-5).reverse().map((event, index) => (
                 <div key={index} className="flex items-center justify-between text-sm">
                   <div className="flex items-center">
-                    {event.type === 'recon' && <Target className="w-3 h-3 mr-2 text-blue-400" />}
-                    {event.type === 'strike' && <AlertTriangle className="w-3 h-3 mr-2 text-red-400" />}
+                    {event.type === 'recon' && <Target className="w-3 h-3 mr-2 text-accent" />}
+                    {event.type === 'strike' && <AlertTriangle className="w-3 h-3 mr-2 text-warn" />}
                     <span className="capitalize">{event.type}</span>
                     {event.data && typeof event.data === 'object' && 'x' in event.data && (
-                      <span className="ml-2 text-slate-400">({(event.data as { x: number; y: number }).x}, {(event.data as { x: number; y: number }).y})</span>
+                                              <span className="ml-2 text-muted">({(event.data as { x: number; y: number }).x}, {(event.data as { x: number; y: number }).y})</span>
                     )}
                   </div>
-                  <span className="text-slate-400">Turn {event.turn}</span>
+                                      <span className="text-muted">Turn {event.turn}</span>
                 </div>
               ))}
             </div>
@@ -193,7 +193,7 @@ export default function AnalyticsPanel() {
                     y1="90%"
                     x2="90%"
                     y2="10%"
-                    stroke="#64748b"
+                    stroke="var(--color-slate-500)"
                     strokeWidth="1"
                     strokeDasharray="5,5"
                   />
@@ -219,7 +219,7 @@ export default function AnalyticsPanel() {
                         cx={`${x}%`}
                         cy={`${y}%`}
                         r={size}
-                        fill="#3b82f6"
+                        fill="var(--color-blue-500)"
                         opacity="0.7"
                       />
                     );

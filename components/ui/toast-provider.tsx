@@ -7,8 +7,8 @@ import { X, AlertTriangle, CheckCircle, Info } from 'lucide-react';
 const toastStyles = {
   className: '',
   style: {
-    background: '#0E131A',
-    color: '#E6EDF3',
+    background: 'var(--color-panel)',
+    color: 'var(--color-ink)',
     border: '1px solid rgba(27, 36, 48, 0.4)',
     borderRadius: '12px',
     fontSize: '14px',
@@ -16,8 +16,8 @@ const toastStyles = {
     maxWidth: '400px',
   },
   iconTheme: {
-    primary: '#55E3FF',
-    secondary: '#0E131A',
+    primary: 'var(--color-accent)',
+    secondary: 'var(--color-panel)',
   },
 };
 
@@ -37,7 +37,7 @@ export const tacticalToast = {
   blocked: (message: string, details?: string) => {
     return toast.custom(
       (t) => (
-        <div className={`card p-3 flex items-start gap-3 ${t.visible ? 'animate-slide-up' : 'animate-fade-out'}`}>
+        <div className={`tactical-card p-4 flex items-start gap-3 ${t.visible ? 'animate-slide-up' : 'animate-fade-out'}`}>
           <AlertTriangle className="w-5 h-5 text-warn flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <div className="font-medium text-warn mb-1">Action Blocked</div>
@@ -62,10 +62,10 @@ export const tacticalToast = {
   success: (message: string, details?: string) => {
     return toast.custom(
       (t) => (
-        <div className={`card p-3 flex items-start gap-3 ${t.visible ? 'animate-slide-up' : 'animate-fade-out'}`}>
-          <CheckCircle className="w-5 h-5 text-ok flex-shrink-0 mt-0.5" />
+        <div className={`tactical-card p-4 flex items-start gap-3 ${t.visible ? 'animate-slide-up' : 'animate-fade-out'}`}>
+          <CheckCircle className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <div className="font-medium text-ok mb-1">Success</div>
+            <div className="font-medium text-accent mb-1">Success</div>
             <div className="text-sm text-ink">{message}</div>
             {details && (
               <div className="text-xs text-muted mt-1 font-mono">{details}</div>

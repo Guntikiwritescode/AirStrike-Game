@@ -116,7 +116,7 @@ export class CanvasRenderer {
         this.quadTree.insert(drawable);
       }
 
-      this.ctx.strokeStyle = boundary.color || '#FF6B6B';
+      this.ctx.strokeStyle = boundary.color || 'var(--color-warn)';
       this.ctx.lineWidth = boundary.width || 2;
 
       if (boundary.dashed && timestamp) {
@@ -174,14 +174,14 @@ export class CanvasRenderer {
 
       // Draw glow effect for selected tracks
       if (track.selected) {
-        this.ctx.shadowColor = '#55E3FF';
+        this.ctx.shadowColor = 'var(--color-accent)';
         this.ctx.shadowBlur = 8;
         this.ctx.shadowOffsetX = 0;
         this.ctx.shadowOffsetY = 0;
       }
 
       // Draw aircraft glyph (tactical chevron)
-      this.drawAircraftGlyph(track.color || '#55E3FF', track.size || 12);
+      this.drawAircraftGlyph(track.color || 'var(--color-accent)', track.size || 12);
 
       this.ctx.restore();
     });
@@ -208,8 +208,8 @@ export class CanvasRenderer {
   private renderText(textDrawable: DrawableText): void {
     this.ctx.save();
     
-    this.ctx.fillStyle = textDrawable.color || '#E6EDF3';
-    this.ctx.font = textDrawable.font || '12px var(--font-jetbrains)';
+    this.ctx.fillStyle = textDrawable.color || 'var(--color-ink)';
+    this.ctx.font = textDrawable.font || '12px "var(--font-jetbrains)"';
     this.ctx.textAlign = textDrawable.align || 'center';
     this.ctx.textBaseline = textDrawable.baseline || 'middle';
 
@@ -224,7 +224,7 @@ export class CanvasRenderer {
 
       this.ctx.fillStyle = textDrawable.background;
       this.ctx.fillRect(x, y, w, h);
-      this.ctx.fillStyle = textDrawable.color || '#E6EDF3';
+      this.ctx.fillStyle = textDrawable.color || 'var(--color-ink)';
     }
 
     this.ctx.fillText(textDrawable.text, textDrawable.x, textDrawable.y);
@@ -247,7 +247,7 @@ export class CanvasRenderer {
     this.ctx.fill();
 
     // Stroke for definition
-    this.ctx.strokeStyle = '#A7F1FF';
+    this.ctx.strokeStyle = 'var(--color-accent)';
     this.ctx.lineWidth = 1;
     this.ctx.stroke();
   }
