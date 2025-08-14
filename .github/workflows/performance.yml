@@ -46,15 +46,15 @@ jobs:
           ANALYZE: true
           
       - name: Check bundle size budget
-        run: node scripts/check-performance-budget.js
+        run: npm run test:performance
         
-      - name: Upload bundle analysis
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: bundle-analysis
+          name: build-artifacts
           path: |
-            .next/analyze/
+            .next/build-manifest.json
             .next/static/
           retention-days: 7
 
@@ -83,30 +83,10 @@ jobs:
         run: npm run lint
         
       - name: Validate color tokens
-        run: |
-          echo "🎨 Checking for stray hex colors..."
-          HEX_COLORS=$(grep -r "#[0-9a-fA-F]\{6\}" app/ components/ lib/ --include="*.tsx" --include="*.ts" --include="*.jsx" --include="*.js" || true)
-          if [ -n "$HEX_COLORS" ]; then
-            echo "❌ Found hex colors in component code:"
-            echo "$HEX_COLORS"
-            echo "Please use design tokens instead of hardcoded hex colors."
-            exit 1
-          else
-            echo "✅ No stray hex colors found!"
-          fi
+        run: npm run test:visual
           
-      - name: Validate typography scale
-        run: |
-          echo "📝 Checking for hardcoded font-size..."
-          FONT_SIZES=$(grep -r "font-size:" app/ components/ --include="*.tsx" --include="*.ts" --include="*.css" || true)
-          if [ -n "$FONT_SIZES" ]; then
-            echo "❌ Found hardcoded font-size values:"
-            echo "$FONT_SIZES"
-            echo "Please use responsive typography classes instead."
-            exit 1
-          else
-            echo "✅ No hardcoded font-size found!"
-          fi
+      - name: Run comprehensive visual validation
+        run: npm run test:performance
           
       - name: Validate spacing grid
         run: |
@@ -143,34 +123,8 @@ jobs:
         env:
           NODE_ENV: production
           
-      - name: Install Lighthouse CI
-        run: npm install -g @lhci/cli@0.12.x
-        
-      - name: Start application
-        run: npm start &
-        env:
-          PORT: 3000
-          
-      - name: Wait for server
-        run: npx wait-on http://localhost:3000 --timeout 60000
-        
-      - name: Run Lighthouse CI
-        run: lhci autorun
-        env:
-          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
-          
-      - name: Upload Lighthouse results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: lighthouse-results
-          path: |
-            .lighthouseci/
-            lighthouse-results/
-          retention-days: 7
-          
       - name: Validate performance budgets
-        run: node scripts/check-performance-budget.js
+        run: npm run test:performance
 
   # End-to-end testing with Playwright
   e2e-performance:
@@ -190,34 +144,36 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
-      - name: Install Playwright
-        run: npx playwright install --with-deps
-        
       - name: Build production
         run: npm run build
         env:
           NODE_ENV: production
           
-      - name: Start application
-        run: npm start &
-        env:
-          PORT: 3000
-          
-      - name: Wait for server
-        run: npx wait-on http://localhost:3000 --timeout 60000
+      - name: Run performance tests
+        run: npm run test:performance
+
+  # QA Summary - comprehensive validation
+  qa-summary:
+    name: QA Summary
+    runs-on: ubuntu-latest
+    needs: [bundle-analysis, visual-consistency, lighthouse, e2e-performance]
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
         
-      - name: Run performance E2E tests
-        run: npx playwright test --config=playwright-performance.config.ts
-        
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          name: e2e-performance-results
-          path: |
-            test-results/
-            playwright-report/
-          retention-days: 7
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run comprehensive QA validation
+        run: npm run qa:full
 
   # Performance regression detection
   performance-regression:
