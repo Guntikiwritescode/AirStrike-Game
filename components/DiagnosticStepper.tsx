@@ -189,19 +189,21 @@ export function useDiagnosticStepper() {
   const copyDiagnostics = () => {
     const diagnostics = {
       timestamp: new Date().toISOString(),
-      userAgent: navigator.userAgent,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
       steps: steps.map(step => ({
         ...step,
         duration: step.startTime && step.endTime ? step.endTime - step.startTime : null,
       })),
-      url: window.location.href,
+      url: typeof window !== 'undefined' ? window.location.href : 'unknown',
       localStorage: {
         available: typeof Storage !== 'undefined',
-        items: typeof Storage !== 'undefined' ? Object.keys(localStorage) : [],
+        items: typeof Storage !== 'undefined' && typeof localStorage !== 'undefined' ? Object.keys(localStorage) : [],
       },
     };
 
-    navigator.clipboard.writeText(JSON.stringify(diagnostics, null, 2));
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(JSON.stringify(diagnostics, null, 2));
+    }
   };
 
   return {
