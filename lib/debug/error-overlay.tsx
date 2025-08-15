@@ -21,8 +21,8 @@ export function useErrorOverlay() {
   });
 
   useEffect(() => {
-    // Only activate in debug mode
-    if (process.env.NEXT_PUBLIC_DEBUG !== '1') {
+    // Only activate in debug mode and on client side
+    if (process.env.NEXT_PUBLIC_DEBUG !== '1' || typeof window === 'undefined') {
       return;
     }
 
@@ -70,9 +70,14 @@ export function useErrorOverlay() {
   };
 
   const copyDiagnostics = () => {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+      // Not running in the browser; do nothing
+      return;
+    }
+    
     const diagnostics = {
       timestamp: new Date().toISOString(),
-      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+      userAgent: navigator.userAgent,
       errors: state.errors,
       localStorage: {
         available: typeof Storage !== 'undefined',
@@ -82,11 +87,11 @@ export function useErrorOverlay() {
         available: typeof sessionStorage !== 'undefined',
         items: typeof sessionStorage !== 'undefined' ? Object.keys(sessionStorage) : [],
       },
-      url: typeof window !== 'undefined' ? window.location.href : 'unknown',
-      referrer: typeof document !== 'undefined' ? document.referrer : 'unknown',
+      url: window.location.href,
+      referrer: document.referrer,
     };
 
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+    if (navigator.clipboard) {
       navigator.clipboard.writeText(JSON.stringify(diagnostics, null, 2));
     }
   };

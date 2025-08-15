@@ -187,21 +187,26 @@ export function useDiagnosticStepper() {
   };
 
   const copyDiagnostics = () => {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+      // Not running in the browser; do nothing
+      return;
+    }
+    
     const diagnostics = {
       timestamp: new Date().toISOString(),
-      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+      userAgent: navigator.userAgent,
       steps: steps.map(step => ({
         ...step,
         duration: step.startTime && step.endTime ? step.endTime - step.startTime : null,
       })),
-      url: typeof window !== 'undefined' ? window.location.href : 'unknown',
+      url: window.location.href,
       localStorage: {
         available: typeof Storage !== 'undefined',
         items: typeof Storage !== 'undefined' && typeof localStorage !== 'undefined' ? Object.keys(localStorage) : [],
       },
     };
 
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+    if (navigator.clipboard) {
       navigator.clipboard.writeText(JSON.stringify(diagnostics, null, 2));
     }
   };
