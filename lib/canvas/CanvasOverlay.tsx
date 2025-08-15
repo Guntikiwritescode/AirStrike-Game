@@ -36,7 +36,7 @@ export default function CanvasOverlay({
     if (!ctx) return;
 
     // Get device pixel ratio for crisp rendering
-    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const dpr = Math.max(1, typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1);
     
     // Set canvas physical size 
     canvas.width = Math.floor(width * dpr);

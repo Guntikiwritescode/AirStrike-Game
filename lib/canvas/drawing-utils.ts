@@ -265,7 +265,7 @@ export function setupCrispCanvas(
   width: number,
   height: number
 ): number {
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const dpr = Math.max(1, typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1);
   
   // Set canvas physical size
   canvas.width = Math.floor(width * dpr);
