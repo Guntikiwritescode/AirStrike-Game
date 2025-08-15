@@ -72,21 +72,23 @@ export function useErrorOverlay() {
   const copyDiagnostics = () => {
     const diagnostics = {
       timestamp: new Date().toISOString(),
-      userAgent: navigator.userAgent,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
       errors: state.errors,
       localStorage: {
         available: typeof Storage !== 'undefined',
-        items: typeof Storage !== 'undefined' ? Object.keys(localStorage) : [],
+        items: typeof Storage !== 'undefined' && typeof localStorage !== 'undefined' ? Object.keys(localStorage) : [],
       },
       sessionStorage: {
         available: typeof sessionStorage !== 'undefined',
         items: typeof sessionStorage !== 'undefined' ? Object.keys(sessionStorage) : [],
       },
-      url: window.location.href,
-      referrer: document.referrer,
+      url: typeof window !== 'undefined' ? window.location.href : 'unknown',
+      referrer: typeof document !== 'undefined' ? document.referrer : 'unknown',
     };
 
-    navigator.clipboard.writeText(JSON.stringify(diagnostics, null, 2));
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(JSON.stringify(diagnostics, null, 2));
+    }
   };
 
   return {

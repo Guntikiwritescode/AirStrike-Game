@@ -23,7 +23,7 @@ export interface WorkerTask<TPayload = unknown, TResult = unknown> {
 export class PerformanceWorkerManager {
   private static instance: PerformanceWorkerManager;
   private workers: Worker[] = [];
-  private workerCount = Math.min(4, navigator.hardwareConcurrency || 2);
+  private workerCount = Math.min(4, typeof navigator !== 'undefined' ? (navigator.hardwareConcurrency || 2) : 2);
   private taskQueue: WorkerTask<unknown, unknown>[] = [];
   private activeTasks = new Map<string, WorkerTask<unknown, unknown>>();
   private workerIndex = 0;
