@@ -422,8 +422,22 @@ describe('Mathematical Invariants', () => {
       valueHostileNeutralized: 100,
       penaltyInfraHit: 200,
       collateralConstraint: 0.3,
+      riskAversion: 0.1,
       showTruthOverlay: false,
-      seed: 'test-seed'
+      seed: 'test-seed',
+      spatialField: {
+        noiseScale: 0.5,
+        smoothingSigma: 1.0,
+        logisticSteepness: 5.0,
+        hostileBaseProbability: 0.2,
+        infraBaseProbability: 0.1
+      },
+      betaPriors: {
+        hostileAlpha: 2,
+        hostileBeta: 8,
+        infraAlpha: 1,
+        infraBeta: 9
+      }
     };
   }
 });

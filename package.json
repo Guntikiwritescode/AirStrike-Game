@@ -19,7 +19,8 @@
     "qa:check": "npm run test:visual && npm run test:performance",
     "qa:full": "npm run lint && npm run test:visual && npm run build:analyze && npm run test:performance",
     "lighthouse:local": "lhci autorun --config=lighthouserc.js",
-    "audit:security": "npm audit --audit-level=moderate"
+    "audit:security": "npm audit --audit-level=moderate",
+    "smoke-test": "node scripts/smoke-test.js"
   },
   "dependencies": {
     "@deck.gl/core": "^9.1.14",

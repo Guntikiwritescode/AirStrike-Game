@@ -1,0 +1,255 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { drawHLine, drawVLine, drawDashedLine, getAnimatedDashOffset, setupCrispCanvas } from '@/lib/canvas/drawing-utils';
+import { QuadTree } from '@/lib/canvas/quadtree';
+import { Point } from '@/lib/canvas/types';
+
+// Mock canvas context
+const createMockContext = () => ({
+  beginPath: vi.fn(),
+  moveTo: vi.fn(),
+  lineTo: vi.fn(),
+  stroke: vi.fn(),
+  save: vi.fn(),
+  restore: vi.fn(),
+  setLineDash: vi.fn(),
+  strokeStyle: '',
+  lineWidth: 1,
+  lineDashOffset: 0
+});
+
+const createMockCanvas = () => ({
+  width: 0,
+  height: 0,
+  style: { width: '', height: '' },
+  getContext: vi.fn()
+});
+
+describe('Canvas Drawing Utils', () => {
+  let mockCtx: ReturnType<typeof createMockContext>;
+  
+  beforeEach(() => {
+    mockCtx = createMockContext();
+  });
+  
+  afterEach(() => {
+    // Clean up mock context
+    mockCtx = null as any;
+  });
+
+  describe('drawHLine', () => {
+    it('should draw a horizontal line with pixel alignment', () => {
+      drawHLine(mockCtx as any, 0, 100, 50);
+      
+      expect(mockCtx.beginPath).toHaveBeenCalledOnce();
+      expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 50.5); // Pixel aligned
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(100, 50.5);
+      expect(mockCtx.stroke).toHaveBeenCalledOnce();
+    });
+
+    it('should handle fractional y coordinates correctly', () => {
+      drawHLine(mockCtx as any, 0, 100, 50.7);
+      
+      expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 51.5); // Rounded + 0.5
+    });
+  });
+
+  describe('drawVLine', () => {
+    it('should draw a vertical line with pixel alignment', () => {
+      drawVLine(mockCtx as any, 50, 0, 100);
+      
+      expect(mockCtx.beginPath).toHaveBeenCalledOnce();
+      expect(mockCtx.moveTo).toHaveBeenCalledWith(50.5, 0); // Pixel aligned
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(50.5, 100);
+      expect(mockCtx.stroke).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('drawDashedLine', () => {
+    it('should handle empty points array', () => {
+      drawDashedLine(mockCtx as any, []);
+      
+      expect(mockCtx.beginPath).toHaveBeenCalledOnce();
+      expect(mockCtx.stroke).toHaveBeenCalledOnce();
+      expect(mockCtx.moveTo).not.toHaveBeenCalled();
+    });
+
+    it('should handle single point', () => {
+      drawDashedLine(mockCtx as any, [{ x: 10, y: 10 }]);
+      
+      expect(mockCtx.beginPath).toHaveBeenCalledOnce();
+      expect(mockCtx.stroke).toHaveBeenCalledOnce();
+      expect(mockCtx.moveTo).not.toHaveBeenCalled();
+    });
+
+    it('should draw dashed line between two points', () => {
+      const points: Point[] = [{ x: 0, y: 0 }, { x: 20, y: 0 }];
+      drawDashedLine(mockCtx as any, points, 6, 6, 0);
+      
+      expect(mockCtx.beginPath).toHaveBeenCalledOnce();
+      expect(mockCtx.stroke).toHaveBeenCalledOnce();
+      expect(mockCtx.moveTo).toHaveBeenCalled();
+      expect(mockCtx.lineTo).toHaveBeenCalled();
+    });
+  });
+
+  describe('getAnimatedDashOffset', () => {
+    it('should return 0 at timestamp 0', () => {
+      expect(getAnimatedDashOffset(0)).toBe(0);
+    });
+
+    it('should return halfway through animation at 1.5 seconds', () => {
+      expect(getAnimatedDashOffset(1500)).toBe(12); // Half of 24px
+    });
+
+    it('should loop back to 0 after 3 seconds', () => {
+      expect(getAnimatedDashOffset(3000)).toBe(0);
+    });
+
+    it('should handle speed multiplier', () => {
+      expect(getAnimatedDashOffset(1500, 2)).toBe(24); // Double speed
+    });
+  });
+
+  describe('setupCrispCanvas', () => {
+    it('should setup canvas with correct DPR scaling', () => {
+      const mockCanvas = createMockCanvas();
+      const mockCtx = createMockContext();
+      mockCtx.setTransform = vi.fn();
+      
+      // Mock devicePixelRatio
+      Object.defineProperty(window, 'devicePixelRatio', {
+        value: 2,
+        writable: true
+      });
+
+      const dpr = setupCrispCanvas(mockCanvas as any, mockCtx as any, 800, 600);
+
+      expect(dpr).toBe(2);
+      expect(mockCanvas.width).toBe(1600); // 800 * 2
+      expect(mockCanvas.height).toBe(1200); // 600 * 2
+      expect(mockCanvas.style.width).toBe('800px');
+      expect(mockCanvas.style.height).toBe('600px');
+      expect(mockCtx.setTransform).toHaveBeenCalledWith(2, 0, 0, 2, 0, 0);
+    });
+
+    it('should handle missing devicePixelRatio', () => {
+      const mockCanvas = createMockCanvas();
+      const mockCtx = createMockContext();
+      mockCtx.setTransform = vi.fn();
+      
+      // Mock missing devicePixelRatio
+      Object.defineProperty(window, 'devicePixelRatio', {
+        value: undefined,
+        writable: true
+      });
+
+      const dpr = setupCrispCanvas(mockCanvas as any, mockCtx as any, 800, 600);
+
+      expect(dpr).toBe(1); // Fallback to 1
+    });
+  });
+});
+
+describe('QuadTree', () => {
+  let quadTree: QuadTree;
+  
+  beforeEach(() => {
+    quadTree = new QuadTree({ x: 0, y: 0, width: 100, height: 100 });
+  });
+  
+  afterEach(() => {
+    // Clean up quad tree to prevent memory leaks
+    if (quadTree) {
+      quadTree.clear();
+    }
+  });
+
+  describe('insert and query', () => {
+    it('should insert and find objects', () => {
+      const object = {
+        id: 'test1',
+        bounds: { x: 10, y: 10, width: 5, height: 5 },
+        type: 'track' as const
+      };
+
+      quadTree.insert(object);
+      
+      const results = quadTree.query({ x: 8, y: 8, width: 10, height: 10 });
+      expect(results).toHaveLength(1);
+      expect(results[0].id).toBe('test1');
+    });
+
+    it('should not find objects outside query bounds', () => {
+      const object = {
+        id: 'test1',
+        bounds: { x: 50, y: 50, width: 5, height: 5 },
+        type: 'track' as const
+      };
+
+      quadTree.insert(object);
+      
+      const results = quadTree.query({ x: 0, y: 0, width: 10, height: 10 });
+      expect(results).toHaveLength(0);
+    });
+
+    it('should handle multiple objects', () => {
+      const objects = [
+        { id: 'test1', bounds: { x: 10, y: 10, width: 5, height: 5 }, type: 'track' as const },
+        { id: 'test2', bounds: { x: 15, y: 15, width: 5, height: 5 }, type: 'track' as const },
+        { id: 'test3', bounds: { x: 80, y: 80, width: 5, height: 5 }, type: 'track' as const }
+      ];
+
+      objects.forEach(obj => quadTree.insert(obj));
+      
+      const results = quadTree.query({ x: 5, y: 5, width: 20, height: 20 });
+      expect(results).toHaveLength(2); // Should find test1 and test2
+    });
+  });
+
+  describe('hitTest', () => {
+    it('should perform hit testing with tolerance', () => {
+      const object = {
+        id: 'test1',
+        bounds: { x: 48, y: 48, width: 4, height: 4 },
+        type: 'track' as const
+      };
+
+      quadTree.insert(object);
+      
+      // Hit test at center of object
+      const hit = quadTree.hitTest({ x: 50, y: 50 }, 5);
+      expect(hit.hit).toBe(true);
+      expect(hit.id).toBe('test1');
+    });
+
+    it('should miss when outside tolerance', () => {
+      const object = {
+        id: 'test1',
+        bounds: { x: 48, y: 48, width: 4, height: 4 },
+        type: 'track' as const
+      };
+
+      quadTree.insert(object);
+      
+      // Hit test far from object
+      const hit = quadTree.hitTest({ x: 80, y: 80 }, 5);
+      expect(hit.hit).toBe(false);
+    });
+  });
+
+  describe('clear', () => {
+    it('should clear all objects', () => {
+      const object = {
+        id: 'test1',
+        bounds: { x: 10, y: 10, width: 5, height: 5 },
+        type: 'track' as const
+      };
+
+      quadTree.insert(object);
+      quadTree.clear();
+      
+      const results = quadTree.query({ x: 0, y: 0, width: 100, height: 100 });
+      expect(results).toHaveLength(0);
+    });
+  });
+});

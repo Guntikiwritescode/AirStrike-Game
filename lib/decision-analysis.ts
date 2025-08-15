@@ -65,7 +65,7 @@ export function calculateStrikeEV(
       expectedValue: 0,
       expectedReward: 0,
       expectedPenalty: 0,
-      cost: config.strikeCost,
+      cost: config.costStrike,
       affectedCells: []
     };
   }
@@ -95,9 +95,9 @@ export function calculateStrikeEV(
   }
   
   // Calculate expected rewards and penalties
-  const expectedReward = expectedHostilesHit * config.hostileValue;
-  const expectedPenalty = expectedInfraHit * config.infraPenalty;
-  const cost = config.strikeCost;
+  const expectedReward = expectedHostilesHit * config.valueHostileNeutralized;
+  const expectedPenalty = expectedInfraHit * config.penaltyInfraHit;
+  const cost = config.costStrike;
   
   // Calculate expected value
   const expectedValue = expectedReward - expectedPenalty - cost;
@@ -110,6 +110,8 @@ export function calculateStrikeEV(
     expectedReward,
     expectedPenalty,
     cost,
+    costOfStrike: cost, // Alias for backwards compatibility
+    collateralRisk: maxInfraProbability, // Alias for collateral risk
     affectedCells,
   };
 }
@@ -272,21 +274,21 @@ export function validateStrike(
   const outcome = calculateStrikeEV(grid, centerX, centerY, radius, config);
   
   // Check collateral damage constraint
-  if (outcome.infraHitProbability > config.collateralThreshold) {
+  if (outcome.infraHitProbability > config.collateralConstraint) {
     return {
       allowed: false,
       requiresConfirmation: true,
-      reason: `High collateral risk: ${(outcome.infraHitProbability * 100).toFixed(1)}% > ${(config.collateralThreshold * 100).toFixed(1)}% threshold`,
+      reason: `High collateral risk: ${(outcome.infraHitProbability * 100).toFixed(1)}% > ${(config.collateralConstraint * 100).toFixed(1)}% threshold`,
       outcome,
     };
   }
   
   // Check if we can afford the strike
-  if (config.strikeCost > config.initialBudget) { // This should check remaining budget
+  if (config.costStrike > config.initialBudget) { // This should check remaining budget
     return {
       allowed: false,
       requiresConfirmation: false,
-      reason: `Insufficient budget: Strike costs $${config.strikeCost}`,
+      reason: `Insufficient budget: Strike costs $${config.costStrike}`,
       outcome,
     };
   }
@@ -360,9 +362,9 @@ export function executeStrike(
   }
   
   // Calculate actual rewards and penalties
-  const totalReward = hostilesHit * config.hostileValue;
-  const totalPenalty = infraHit * config.infraPenalty;
-  const netPoints = totalReward - totalPenalty - config.strikeCost;
+  const totalReward = hostilesHit * config.valueHostileNeutralized;
+  const totalPenalty = infraHit * config.penaltyInfraHit;
+  const netPoints = totalReward - totalPenalty - config.costStrike;
   
   return {
     hostilesHit,
@@ -469,7 +471,7 @@ export function recommendAction(
   const optimalRecon = findOptimalRecon(grid, selectedSensor, config, strikeRadius, config.seed);
   
   // Check budget constraints
-  const canAffordStrike = remainingBudget >= config.strikeCost;
+  const canAffordStrike = remainingBudget >= config.costStrike;
   const canAffordRecon = remainingBudget >= 10; // Minimum recon cost
   
   // Time pressure factor
