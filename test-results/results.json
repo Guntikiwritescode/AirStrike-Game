@@ -11,14 +11,14 @@
     "grepInvert": null,
     "maxFailures": 0,
     "metadata": {
-      "actualWorkers": 2
+      "actualWorkers": 1
     },
     "preserveOutput": "always",
     "reporter": [
       [
         "html",
         {
-          "outputFolder": "test-results/html-report"
+          "outputFolder": "playwright-report"
         }
       ],
       [
@@ -43,7 +43,7 @@
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 2
+          "actualWorkers": 1
         },
         "id": "chromium",
         "name": "chromium",
@@ -52,14 +52,14 @@
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 30000
+        "timeout": 60000
       },
       {
         "outputDir": "/workspace/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 2
+          "actualWorkers": 1
         },
         "id": "firefox",
         "name": "firefox",
@@ -68,14 +68,14 @@
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 30000
+        "timeout": 60000
       },
       {
         "outputDir": "/workspace/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
-          "actualWorkers": 2
+          "actualWorkers": 1
         },
         "id": "webkit",
         "name": "webkit",
@@ -84,16 +84,16 @@
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 30000
+        "timeout": 60000
       }
     ],
     "shard": null,
     "updateSnapshots": "missing",
     "updateSourceMethod": "patch",
     "version": "1.54.2",
-    "workers": 2,
+    "workers": 1,
     "webServer": {
-      "command": "pnpm dev",
+      "command": "pnpm build && pnpm start",
       "url": "http://localhost:3000",
       "reuseExistingServer": true,
       "timeout": 120000
@@ -119,7 +119,7 @@
               "tags": [],
               "tests": [
                 {
-                  "timeout": 30000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -129,14 +129,14 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "timedOut",
-                      "duration": 32366,
+                      "duration": 61563,
                       "error": {
-                        "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
-                        "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                        "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
                       },
                       "errors": [
                         {
-                          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                          "message": "\u001b[31mTest timeout of 60000ms exceeded.\u001b[39m"
                         },
                         {
                           "location": {
@@ -144,13 +144,13 @@
                             "column": 16,
                             "line": 9
                           },
-                          "message": "Error: page.goto: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/game\", waiting until \"networkidle\"\u001b[22m\n\n\n\u001b[0m \u001b[90m  7 |\u001b[39m     \n \u001b[90m  8 |\u001b[39m     \u001b[90m// Enable debug mode to show ready gates status strip\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m  9 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/game'\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m'networkidle'\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 10 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39maddInitScript(() \u001b[33m=>\u001b[39m {\n \u001b[90m 11 |\u001b[39m       window\u001b[33m.\u001b[39mlocalStorage\u001b[33m.\u001b[39msetItem(\u001b[32m'NEXT_PUBLIC_DEBUG'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'1'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 12 |\u001b[39m     })\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at /workspace/tests/e2e/game-smoke.test.ts:9:16\u001b[22m"
+                          "message": "Error: page.goto: Test timeout of 60000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/game\", waiting until \"networkidle\"\u001b[22m\n\n\n\u001b[0m \u001b[90m  7 |\u001b[39m     \n \u001b[90m  8 |\u001b[39m     \u001b[90m// Enable debug mode to show ready gates status strip\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m  9 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/game'\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m'networkidle'\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 10 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39maddInitScript(() \u001b[33m=>\u001b[39m {\n \u001b[90m 11 |\u001b[39m       window\u001b[33m.\u001b[39mlocalStorage\u001b[33m.\u001b[39msetItem(\u001b[32m'NEXT_PUBLIC_DEBUG'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'1'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 12 |\u001b[39m     })\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at /workspace/tests/e2e/game-smoke.test.ts:9:16\u001b[22m"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-08-14T15:43:55.202Z",
+                      "startTime": "2025-08-15T03:26:38.807Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -180,187 +180,40 @@
               "column": 7
             },
             {
-              "title": "should handle graceful degradation when workers fail",
-              "ok": false,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 1,
-                      "status": "failed",
-                      "duration": 5023,
-                      "error": {
-                        "message": "Error: page.waitForFunction: SyntaxError: Failed to execute 'querySelector' on 'Document': 'text=System Diagnostics' is not a valid selector.\n    at eval (eval at predicate (eval at evaluate (:291:30)), <anonymous>:3:36)\n    at predicate (eval at evaluate (:291:30), <anonymous>:5:23)\n    at next (eval at evaluate (:291:30), <anonymous>:25:29)\n    at eval (eval at evaluate (:291:30), <anonymous>:38:9)\n    at UtilityScript.evaluate (<anonymous>:293:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
-                        "stack": "Error: page.waitForFunction: SyntaxError: Failed to execute 'querySelector' on 'Document': 'text=System Diagnostics' is not a valid selector.\n    at eval (eval at predicate (eval at evaluate (:291:30)), <anonymous>:3:36)\n    at predicate (eval at evaluate (:291:30), <anonymous>:5:23)\n    at next (eval at evaluate (:291:30), <anonymous>:25:29)\n    at eval (eval at evaluate (:291:30), <anonymous>:38:9)\n    at UtilityScript.evaluate (<anonymous>:293:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)\n    at eval (eval at predicate (eval at evaluate (:291:30)), <anonymous>:3:36)\n    at predicate (eval at evaluate (:291:30), <anonymous>:5:23)\n    at next (eval at evaluate (:291:30), <anonymous>:25:29)\n    at eval (eval at evaluate (:291:30), <anonymous>:38:9)\n    at UtilityScript.evaluate (<anonymous>:293:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)\n    at /workspace/tests/e2e/game-smoke.test.ts:121:16",
-                        "location": {
-                          "file": "eval at predicate (eval at evaluate (:291:30)), <anonymous>",
-                          "column": 36,
-                          "line": 3
-                        }
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "eval at predicate (eval at evaluate (:291:30)), <anonymous>",
-                            "column": 36,
-                            "line": 3
-                          },
-                          "message": "Error: page.waitForFunction: SyntaxError: Failed to execute 'querySelector' on 'Document': 'text=System Diagnostics' is not a valid selector.\n\u001b[2m    at eval (eval at predicate (eval at evaluate (:291:30)), <anonymous>:3:36)\u001b[22m\n\u001b[2m    at predicate (eval at evaluate (:291:30), <anonymous>:5:23)\u001b[22m\n\u001b[2m    at next (eval at evaluate (:291:30), <anonymous>:25:29)\u001b[22m\n\u001b[2m    at eval (eval at evaluate (:291:30), <anonymous>:38:9)\u001b[22m\n\u001b[2m    at UtilityScript.evaluate (<anonymous>:293:16)\u001b[22m\n\u001b[2m    at UtilityScript.<anonymous> (<anonymous>:1:44)\u001b[22m\n\u001b[2m    at eval (eval at predicate (eval at evaluate (:291:30)), <anonymous>:3:36)\u001b[22m\n\u001b[2m    at predicate (eval at evaluate (:291:30), <anonymous>:5:23)\u001b[22m\n\u001b[2m    at next (eval at evaluate (:291:30), <anonymous>:25:29)\u001b[22m\n\u001b[2m    at eval (eval at evaluate (:291:30), <anonymous>:38:9)\u001b[22m\n\u001b[2m    at UtilityScript.evaluate (<anonymous>:293:16)\u001b[22m\n\u001b[2m    at UtilityScript.<anonymous> (<anonymous>:1:44)\u001b[22m\n\u001b[2m    at /workspace/tests/e2e/game-smoke.test.ts:121:16\u001b[22m"
-                        }
-                      ],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-08-14T15:43:55.191Z",
-                      "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "/workspace/test-results/game-smoke-Game-Page-Smoke-c0cc5-gradation-when-workers-fail-chromium/test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "/workspace/test-results/game-smoke-Game-Page-Smoke-c0cc5-gradation-when-workers-fail-chromium/video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "/workspace/test-results/game-smoke-Game-Page-Smoke-c0cc5-gradation-when-workers-fail-chromium/error-context.md"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "eval at predicate (eval at evaluate (:291:30)), <anonymous>",
-                        "column": 36,
-                        "line": 3
-                      }
-                    }
-                  ],
-                  "status": "unexpected"
-                }
-              ],
-              "id": "707a2a88ec2627813456-fc8db3ee613738cfccb0",
-              "file": "game-smoke.test.ts",
-              "line": 112,
-              "column": 7
-            },
-            {
-              "title": "should fail fast if app hangs on loading",
-              "ok": false,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 2,
-                      "parallelIndex": 1,
-                      "status": "failed",
-                      "duration": 7776,
-                      "error": {
-                        "message": "Error: \u001b[31mTimed out 5000ms waiting for \u001b[39m\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m\n\nLocator: locator('text=System Diagnostics')\nExpected: visible\nReceived: <element(s) not found>\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('text=System Diagnostics')\u001b[22m\n",
-                        "stack": "Error: \u001b[31mTimed out 5000ms waiting for \u001b[39m\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m\n\nLocator: locator('text=System Diagnostics')\nExpected: visible\nReceived: <element(s) not found>\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('text=System Diagnostics')\u001b[22m\n\n    at /workspace/tests/e2e/game-smoke.test.ts:147:59",
-                        "location": {
-                          "file": "/workspace/tests/e2e/game-smoke.test.ts",
-                          "column": 59,
-                          "line": 147
-                        },
-                        "snippet": "\u001b[0m \u001b[90m 145 |\u001b[39m     \n \u001b[90m 146 |\u001b[39m     \u001b[90m// Should see initial loading state\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 147 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mlocator(\u001b[32m'text=System Diagnostics'\u001b[39m))\u001b[33m.\u001b[39mtoBeVisible({ timeout\u001b[33m:\u001b[39m \u001b[35m5000\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                                                           \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 148 |\u001b[39m     \n \u001b[90m 149 |\u001b[39m     \u001b[90m// But should not stay in loading state indefinitely\u001b[39m\n \u001b[90m 150 |\u001b[39m     \u001b[90m// If still showing diagnostics after 25 seconds, something is wrong\u001b[39m\u001b[0m"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "/workspace/tests/e2e/game-smoke.test.ts",
-                            "column": 59,
-                            "line": 147
-                          },
-                          "message": "Error: \u001b[31mTimed out 5000ms waiting for \u001b[39m\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m\n\nLocator: locator('text=System Diagnostics')\nExpected: visible\nReceived: <element(s) not found>\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('text=System Diagnostics')\u001b[22m\n\n\n\u001b[0m \u001b[90m 145 |\u001b[39m     \n \u001b[90m 146 |\u001b[39m     \u001b[90m// Should see initial loading state\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 147 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mlocator(\u001b[32m'text=System Diagnostics'\u001b[39m))\u001b[33m.\u001b[39mtoBeVisible({ timeout\u001b[33m:\u001b[39m \u001b[35m5000\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                                                           \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 148 |\u001b[39m     \n \u001b[90m 149 |\u001b[39m     \u001b[90m// But should not stay in loading state indefinitely\u001b[39m\n \u001b[90m 150 |\u001b[39m     \u001b[90m// If still showing diagnostics after 25 seconds, something is wrong\u001b[39m\u001b[0m\n\u001b[2m    at /workspace/tests/e2e/game-smoke.test.ts:147:59\u001b[22m"
-                        }
-                      ],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-08-14T15:44:00.824Z",
-                      "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "/workspace/test-results/game-smoke-Game-Page-Smoke-0a7ba-ast-if-app-hangs-on-loading-chromium/test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "/workspace/test-results/game-smoke-Game-Page-Smoke-0a7ba-ast-if-app-hangs-on-loading-chromium/video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "/workspace/test-results/game-smoke-Game-Page-Smoke-0a7ba-ast-if-app-hangs-on-loading-chromium/error-context.md"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "/workspace/tests/e2e/game-smoke.test.ts",
-                        "column": 59,
-                        "line": 147
-                      }
-                    }
-                  ],
-                  "status": "unexpected"
-                }
-              ],
-              "id": "707a2a88ec2627813456-7e811a14e8206f8e7792",
-              "file": "game-smoke.test.ts",
-              "line": 142,
-              "column": 7
-            },
-            {
               "title": "should load /game page with all ready gates passing",
               "ok": false,
               "tags": [],
               "tests": [
                 {
-                  "timeout": 30000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "firefox",
                   "projectName": "firefox",
                   "results": [
                     {
-                      "workerIndex": 3,
-                      "parallelIndex": 1,
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 10560,
+                      "duration": 9325,
                       "error": {
-                        "message": "Error: Too many gate failures: fonts, store, map, simWorker, perfWorker, heatmaps",
-                        "stack": "Error: Too many gate failures: fonts, store, map, simWorker, perfWorker, heatmaps\n    at /workspace/tests/e2e/game-smoke.test.ts:67:13",
+                        "message": "Error: All gates failed: fonts, store, map, simWorker, perfWorker, heatmaps",
+                        "stack": "Error: All gates failed: fonts, store, map, simWorker, perfWorker, heatmaps\n    at /workspace/tests/e2e/game-smoke.test.ts:79:13",
                         "location": {
                           "file": "/workspace/tests/e2e/game-smoke.test.ts",
                           "column": 13,
-                          "line": 67
+                          "line": 79
                         },
-                        "snippet": "\u001b[0m \u001b[90m 65 |\u001b[39m     \u001b[36mif\u001b[39m (failedGates\u001b[33m.\u001b[39mlength \u001b[33m>\u001b[39m \u001b[35m2\u001b[39m) {\n \u001b[90m 66 |\u001b[39m       \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mscreenshot({ path\u001b[33m:\u001b[39m \u001b[32m'test-results/debug-many-gate-failures.png'\u001b[39m\u001b[33m,\u001b[39m fullPage\u001b[33m:\u001b[39m \u001b[36mtrue\u001b[39m })\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 67 |\u001b[39m       \u001b[36mthrow\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(\u001b[32m`Too many gate failures: ${failedGates.map(g => g.gate).join(', ')}`\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 68 |\u001b[39m     }\n \u001b[90m 69 |\u001b[39m     \n \u001b[90m 70 |\u001b[39m     \u001b[90m// Wait for the main interface to load (either diagnostics disappear or we see game UI)\u001b[39m\u001b[0m"
+                        "snippet": "\u001b[0m \u001b[90m 77 |\u001b[39m     \u001b[36mif\u001b[39m (failedGates\u001b[33m.\u001b[39mlength \u001b[33m>=\u001b[39m gateNames\u001b[33m.\u001b[39mlength) {\n \u001b[90m 78 |\u001b[39m       \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mscreenshot({ path\u001b[33m:\u001b[39m \u001b[32m'test-results/debug-all-gate-failures.png'\u001b[39m\u001b[33m,\u001b[39m fullPage\u001b[33m:\u001b[39m \u001b[36mtrue\u001b[39m })\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 79 |\u001b[39m       \u001b[36mthrow\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(\u001b[32m`All gates failed: ${failedGates.map(g => g.gate).join(', ')}`\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 80 |\u001b[39m     }\n \u001b[90m 81 |\u001b[39m     \n \u001b[90m 82 |\u001b[39m     \u001b[90m// Log results for CI debugging\u001b[39m\u001b[0m"
                       },
                       "errors": [
                         {
                           "location": {
                             "file": "/workspace/tests/e2e/game-smoke.test.ts",
                             "column": 13,
-                            "line": 67
+                            "line": 79
                           },
-                          "message": "Error: Too many gate failures: fonts, store, map, simWorker, perfWorker, heatmaps\n\n\u001b[0m \u001b[90m 65 |\u001b[39m     \u001b[36mif\u001b[39m (failedGates\u001b[33m.\u001b[39mlength \u001b[33m>\u001b[39m \u001b[35m2\u001b[39m) {\n \u001b[90m 66 |\u001b[39m       \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mscreenshot({ path\u001b[33m:\u001b[39m \u001b[32m'test-results/debug-many-gate-failures.png'\u001b[39m\u001b[33m,\u001b[39m fullPage\u001b[33m:\u001b[39m \u001b[36mtrue\u001b[39m })\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 67 |\u001b[39m       \u001b[36mthrow\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(\u001b[32m`Too many gate failures: ${failedGates.map(g => g.gate).join(', ')}`\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 68 |\u001b[39m     }\n \u001b[90m 69 |\u001b[39m     \n \u001b[90m 70 |\u001b[39m     \u001b[90m// Wait for the main interface to load (either diagnostics disappear or we see game UI)\u001b[39m\u001b[0m\n\u001b[2m    at /workspace/tests/e2e/game-smoke.test.ts:67:13\u001b[22m"
+                          "message": "Error: All gates failed: fonts, store, map, simWorker, perfWorker, heatmaps\n\n\u001b[0m \u001b[90m 77 |\u001b[39m     \u001b[36mif\u001b[39m (failedGates\u001b[33m.\u001b[39mlength \u001b[33m>=\u001b[39m gateNames\u001b[33m.\u001b[39mlength) {\n \u001b[90m 78 |\u001b[39m       \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mscreenshot({ path\u001b[33m:\u001b[39m \u001b[32m'test-results/debug-all-gate-failures.png'\u001b[39m\u001b[33m,\u001b[39m fullPage\u001b[33m:\u001b[39m \u001b[36mtrue\u001b[39m })\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 79 |\u001b[39m       \u001b[36mthrow\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(\u001b[32m`All gates failed: ${failedGates.map(g => g.gate).join(', ')}`\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 80 |\u001b[39m     }\n \u001b[90m 81 |\u001b[39m     \n \u001b[90m 82 |\u001b[39m     \u001b[90m// Log results for CI debugging\u001b[39m\u001b[0m\n\u001b[2m    at /workspace/tests/e2e/game-smoke.test.ts:79:13\u001b[22m"
                         }
                       ],
                       "stdout": [
@@ -370,7 +223,7 @@
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-08-14T15:44:09.251Z",
+                      "startTime": "2025-08-15T03:27:40.954Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -392,7 +245,7 @@
                       "errorLocation": {
                         "file": "/workspace/tests/e2e/game-smoke.test.ts",
                         "column": 13,
-                        "line": 67
+                        "line": 79
                       }
                     }
                   ],
@@ -405,208 +258,19 @@
               "column": 7
             },
             {
-              "title": "should handle graceful degradation when workers fail",
-              "ok": false,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "firefox",
-                  "projectName": "firefox",
-                  "results": [
-                    {
-                      "workerIndex": 4,
-                      "parallelIndex": 1,
-                      "status": "failed",
-                      "duration": 3086,
-                      "error": {
-                        "message": "Error: page.waitForFunction: Document.querySelector: 'text=System Diagnostics' is not a valid selector\n@debugger eval code line 291 > eval line 3 > eval:3:36\npredicate@debugger eval code line 291 > eval:5:23\nnext@debugger eval code line 291 > eval:25:29\n@debugger eval code line 291 > eval:38:9\nevaluate@debugger eval code:293:16\n@debugger eval code:1:44\n",
-                        "stack": "Error: page.waitForFunction: Document.querySelector: 'text=System Diagnostics' is not a valid selector\n@debugger eval code line 291 > eval line 3 > eval:3:36\npredicate@debugger eval code line 291 > eval:5:23\nnext@debugger eval code line 291 > eval:25:29\n@debugger eval code line 291 > eval:38:9\nevaluate@debugger eval code:293:16\n@debugger eval code:1:44\n\n    at @debugger eval code line 291 > eval line 3 > eval:3:36\n    at predicate@debugger eval code line 291 > eval:5:23\n    at next@debugger eval code line 291 > eval:25:29\n    at @debugger eval code line 291 > eval:38:9\n    at evaluate@debugger eval code:293:16\n    at @debugger eval code:1:44\n    at /workspace/tests/e2e/game-smoke.test.ts:121:16",
-                        "location": {
-                          "file": "@debugger eval code line 291 > eval line 3 > eval",
-                          "column": 36,
-                          "line": 3
-                        }
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "@debugger eval code line 291 > eval line 3 > eval",
-                            "column": 36,
-                            "line": 3
-                          },
-                          "message": "Error: page.waitForFunction: Document.querySelector: 'text=System Diagnostics' is not a valid selector\n@debugger eval code line 291 > eval line 3 > eval:3:36\npredicate@debugger eval code line 291 > eval:5:23\nnext@debugger eval code line 291 > eval:25:29\n@debugger eval code line 291 > eval:38:9\nevaluate@debugger eval code:293:16\n@debugger eval code:1:44\n\n\u001b[2m    at @debugger eval code line 291 > eval line 3 > eval:3:36\u001b[22m\n\u001b[2m    at predicate@debugger eval code line 291 > eval:5:23\u001b[22m\n\u001b[2m    at next@debugger eval code line 291 > eval:25:29\u001b[22m\n\u001b[2m    at @debugger eval code line 291 > eval:38:9\u001b[22m\n\u001b[2m    at evaluate@debugger eval code:293:16\u001b[22m\n\u001b[2m    at @debugger eval code:1:44\u001b[22m\n\u001b[2m    at /workspace/tests/e2e/game-smoke.test.ts:121:16\u001b[22m"
-                        }
-                      ],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-08-14T15:44:21.194Z",
-                      "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "/workspace/test-results/game-smoke-Game-Page-Smoke-c0cc5-gradation-when-workers-fail-firefox/test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "/workspace/test-results/game-smoke-Game-Page-Smoke-c0cc5-gradation-when-workers-fail-firefox/video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "/workspace/test-results/game-smoke-Game-Page-Smoke-c0cc5-gradation-when-workers-fail-firefox/error-context.md"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "@debugger eval code line 291 > eval line 3 > eval",
-                        "column": 36,
-                        "line": 3
-                      }
-                    }
-                  ],
-                  "status": "unexpected"
-                }
-              ],
-              "id": "707a2a88ec2627813456-11c1656e9ed48d40d5b6",
-              "file": "game-smoke.test.ts",
-              "line": 112,
-              "column": 7
-            },
-            {
-              "title": "should fail fast if app hangs on loading",
-              "ok": false,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "firefox",
-                  "projectName": "firefox",
-                  "results": [
-                    {
-                      "workerIndex": 5,
-                      "parallelIndex": 1,
-                      "status": "failed",
-                      "duration": 7078,
-                      "error": {
-                        "message": "Error: \u001b[31mTimed out 5000ms waiting for \u001b[39m\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m\n\nLocator: locator('text=System Diagnostics')\nExpected: visible\nReceived: <element(s) not found>\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('text=System Diagnostics')\u001b[22m\n",
-                        "stack": "Error: \u001b[31mTimed out 5000ms waiting for \u001b[39m\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m\n\nLocator: locator('text=System Diagnostics')\nExpected: visible\nReceived: <element(s) not found>\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('text=System Diagnostics')\u001b[22m\n\n    at /workspace/tests/e2e/game-smoke.test.ts:147:59",
-                        "location": {
-                          "file": "/workspace/tests/e2e/game-smoke.test.ts",
-                          "column": 59,
-                          "line": 147
-                        },
-                        "snippet": "\u001b[0m \u001b[90m 145 |\u001b[39m     \n \u001b[90m 146 |\u001b[39m     \u001b[90m// Should see initial loading state\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 147 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mlocator(\u001b[32m'text=System Diagnostics'\u001b[39m))\u001b[33m.\u001b[39mtoBeVisible({ timeout\u001b[33m:\u001b[39m \u001b[35m5000\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                                                           \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 148 |\u001b[39m     \n \u001b[90m 149 |\u001b[39m     \u001b[90m// But should not stay in loading state indefinitely\u001b[39m\n \u001b[90m 150 |\u001b[39m     \u001b[90m// If still showing diagnostics after 25 seconds, something is wrong\u001b[39m\u001b[0m"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "/workspace/tests/e2e/game-smoke.test.ts",
-                            "column": 59,
-                            "line": 147
-                          },
-                          "message": "Error: \u001b[31mTimed out 5000ms waiting for \u001b[39m\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m\n\nLocator: locator('text=System Diagnostics')\nExpected: visible\nReceived: <element(s) not found>\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('text=System Diagnostics')\u001b[22m\n\n\n\u001b[0m \u001b[90m 145 |\u001b[39m     \n \u001b[90m 146 |\u001b[39m     \u001b[90m// Should see initial loading state\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 147 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mlocator(\u001b[32m'text=System Diagnostics'\u001b[39m))\u001b[33m.\u001b[39mtoBeVisible({ timeout\u001b[33m:\u001b[39m \u001b[35m5000\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                                                           \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 148 |\u001b[39m     \n \u001b[90m 149 |\u001b[39m     \u001b[90m// But should not stay in loading state indefinitely\u001b[39m\n \u001b[90m 150 |\u001b[39m     \u001b[90m// If still showing diagnostics after 25 seconds, something is wrong\u001b[39m\u001b[0m\n\u001b[2m    at /workspace/tests/e2e/game-smoke.test.ts:147:59\u001b[22m"
-                        }
-                      ],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-08-14T15:44:25.630Z",
-                      "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "/workspace/test-results/game-smoke-Game-Page-Smoke-0a7ba-ast-if-app-hangs-on-loading-firefox/test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "/workspace/test-results/game-smoke-Game-Page-Smoke-0a7ba-ast-if-app-hangs-on-loading-firefox/video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "/workspace/test-results/game-smoke-Game-Page-Smoke-0a7ba-ast-if-app-hangs-on-loading-firefox/error-context.md"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "/workspace/tests/e2e/game-smoke.test.ts",
-                        "column": 59,
-                        "line": 147
-                      }
-                    }
-                  ],
-                  "status": "unexpected"
-                }
-              ],
-              "id": "707a2a88ec2627813456-57cb079c5d8b2662f325",
-              "file": "game-smoke.test.ts",
-              "line": 142,
-              "column": 7
-            },
-            {
               "title": "should load /game page with all ready gates passing",
               "ok": false,
               "tags": [],
               "tests": [
                 {
-                  "timeout": 30000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "webkit",
                   "projectName": "webkit",
                   "results": [
                     {
-                      "workerIndex": 6,
-                      "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 2,
-                      "error": {
-                        "message": "Error: browserType.launch: \n╔══════════════════════════════════════════════════════╗\n║ Host system is missing dependencies to run browsers. ║\n║ Missing libraries:                                   ║\n║     libgstreamer-1.0.so.0                            ║\n║     libgtk-4.so.1                                    ║\n║     libgraphene-1.0.so.0                             ║\n║     libicudata.so.74                                 ║\n║     libicui18n.so.74                                 ║\n║     libicuuc.so.74                                   ║\n║     libxslt.so.1                                     ║\n║     libwoff2dec.so.1.0.2                             ║\n║     libvpx.so.9                                      ║\n║     libevent-2.1.so.7                                ║\n║     libopus.so.0                                     ║\n║     libgstallocators-1.0.so.0                        ║\n║     libgstapp-1.0.so.0                               ║\n║     libgstbase-1.0.so.0                              ║\n║     libgstpbutils-1.0.so.0                           ║\n║     libgstaudio-1.0.so.0                             ║\n║     libgsttag-1.0.so.0                               ║\n║     libgstvideo-1.0.so.0                             ║\n║     libgstgl-1.0.so.0                                ║\n║     libgstcodecparsers-1.0.so.0                      ║\n║     libgstfft-1.0.so.0                               ║\n║     libflite.so.1                                    ║\n║     libflite_usenglish.so.1                          ║\n║     libflite_cmu_grapheme_lang.so.1                  ║\n║     libflite_cmu_grapheme_lex.so.1                   ║\n║     libflite_cmu_indic_lang.so.1                     ║\n║     libflite_cmu_indic_lex.so.1                      ║\n║     libflite_cmulex.so.1                             ║\n║     libflite_cmu_time_awb.so.1                       ║\n║     libflite_cmu_us_awb.so.1                         ║\n║     libflite_cmu_us_kal16.so.1                       ║\n║     libflite_cmu_us_kal.so.1                         ║\n║     libflite_cmu_us_rms.so.1                         ║\n║     libflite_cmu_us_slt.so.1                         ║\n║     libavif.so.16                                    ║\n║     libharfbuzz-icu.so.0                             ║\n║     libwebpmux.so.3                                  ║\n║     libenchant-2.so.2                                ║\n║     libsecret-1.so.0                                 ║\n║     libhyphen.so.0                                   ║\n║     libmanette-0.2.so.0                              ║\n║     libGLESv2.so.2                                   ║\n║     libx264.so                                       ║\n╚══════════════════════════════════════════════════════╝",
-                        "stack": "Error: browserType.launch: \n╔══════════════════════════════════════════════════════╗\n║ Host system is missing dependencies to run browsers. ║\n║ Missing libraries:                                   ║\n║     libgstreamer-1.0.so.0                            ║\n║     libgtk-4.so.1                                    ║\n║     libgraphene-1.0.so.0                             ║\n║     libicudata.so.74                                 ║\n║     libicui18n.so.74                                 ║\n║     libicuuc.so.74                                   ║\n║     libxslt.so.1                                     ║\n║     libwoff2dec.so.1.0.2                             ║\n║     libvpx.so.9                                      ║\n║     libevent-2.1.so.7                                ║\n║     libopus.so.0                                     ║\n║     libgstallocators-1.0.so.0                        ║\n║     libgstapp-1.0.so.0                               ║\n║     libgstbase-1.0.so.0                              ║\n║     libgstpbutils-1.0.so.0                           ║\n║     libgstaudio-1.0.so.0                             ║\n║     libgsttag-1.0.so.0                               ║\n║     libgstvideo-1.0.so.0                             ║\n║     libgstgl-1.0.so.0                                ║\n║     libgstcodecparsers-1.0.so.0                      ║\n║     libgstfft-1.0.so.0                               ║\n║     libflite.so.1                                    ║\n║     libflite_usenglish.so.1                          ║\n║     libflite_cmu_grapheme_lang.so.1                  ║\n║     libflite_cmu_grapheme_lex.so.1                   ║\n║     libflite_cmu_indic_lang.so.1                     ║\n║     libflite_cmu_indic_lex.so.1                      ║\n║     libflite_cmulex.so.1                             ║\n║     libflite_cmu_time_awb.so.1                       ║\n║     libflite_cmu_us_awb.so.1                         ║\n║     libflite_cmu_us_kal16.so.1                       ║\n║     libflite_cmu_us_kal.so.1                         ║\n║     libflite_cmu_us_rms.so.1                         ║\n║     libflite_cmu_us_slt.so.1                         ║\n║     libavif.so.16                                    ║\n║     libharfbuzz-icu.so.0                             ║\n║     libwebpmux.so.3                                  ║\n║     libenchant-2.so.2                                ║\n║     libsecret-1.so.0                                 ║\n║     libhyphen.so.0                                   ║\n║     libmanette-0.2.so.0                              ║\n║     libGLESv2.so.2                                   ║\n║     libx264.so                                       ║\n╚══════════════════════════════════════════════════════╝"
-                      },
-                      "errors": [
-                        {
-                          "message": "Error: browserType.launch: \n╔══════════════════════════════════════════════════════╗\n║ Host system is missing dependencies to run browsers. ║\n║ Missing libraries:                                   ║\n║     libgstreamer-1.0.so.0                            ║\n║     libgtk-4.so.1                                    ║\n║     libgraphene-1.0.so.0                             ║\n║     libicudata.so.74                                 ║\n║     libicui18n.so.74                                 ║\n║     libicuuc.so.74                                   ║\n║     libxslt.so.1                                     ║\n║     libwoff2dec.so.1.0.2                             ║\n║     libvpx.so.9                                      ║\n║     libevent-2.1.so.7                                ║\n║     libopus.so.0                                     ║\n║     libgstallocators-1.0.so.0                        ║\n║     libgstapp-1.0.so.0                               ║\n║     libgstbase-1.0.so.0                              ║\n║     libgstpbutils-1.0.so.0                           ║\n║     libgstaudio-1.0.so.0                             ║\n║     libgsttag-1.0.so.0                               ║\n║     libgstvideo-1.0.so.0                             ║\n║     libgstgl-1.0.so.0                                ║\n║     libgstcodecparsers-1.0.so.0                      ║\n║     libgstfft-1.0.so.0                               ║\n║     libflite.so.1                                    ║\n║     libflite_usenglish.so.1                          ║\n║     libflite_cmu_grapheme_lang.so.1                  ║\n║     libflite_cmu_grapheme_lex.so.1                   ║\n║     libflite_cmu_indic_lang.so.1                     ║\n║     libflite_cmu_indic_lex.so.1                      ║\n║     libflite_cmulex.so.1                             ║\n║     libflite_cmu_time_awb.so.1                       ║\n║     libflite_cmu_us_awb.so.1                         ║\n║     libflite_cmu_us_kal16.so.1                       ║\n║     libflite_cmu_us_kal.so.1                         ║\n║     libflite_cmu_us_rms.so.1                         ║\n║     libflite_cmu_us_slt.so.1                         ║\n║     libavif.so.16                                    ║\n║     libharfbuzz-icu.so.0                             ║\n║     libwebpmux.so.3                                  ║\n║     libenchant-2.so.2                                ║\n║     libsecret-1.so.0                                 ║\n║     libhyphen.so.0                                   ║\n║     libmanette-0.2.so.0                              ║\n║     libGLESv2.so.2                                   ║\n║     libx264.so                                       ║\n╚══════════════════════════════════════════════════════╝"
-                        }
-                      ],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-08-14T15:44:28.138Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "unexpected"
-                }
-              ],
-              "id": "707a2a88ec2627813456-45ab7d981f2076b9c6aa",
-              "file": "game-smoke.test.ts",
-              "line": 4,
-              "column": 7
-            },
-            {
-              "title": "should handle graceful degradation when workers fail",
-              "ok": false,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "webkit",
-                  "projectName": "webkit",
-                  "results": [
-                    {
-                      "workerIndex": 7,
+                      "workerIndex": 2,
                       "parallelIndex": 0,
                       "status": "failed",
                       "duration": 1,
@@ -622,7 +286,7 @@
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-08-14T15:44:28.806Z",
+                      "startTime": "2025-08-15T03:27:51.477Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -630,51 +294,9 @@
                   "status": "unexpected"
                 }
               ],
-              "id": "707a2a88ec2627813456-41acef125434d0c2bed6",
+              "id": "707a2a88ec2627813456-45ab7d981f2076b9c6aa",
               "file": "game-smoke.test.ts",
-              "line": 112,
-              "column": 7
-            },
-            {
-              "title": "should fail fast if app hangs on loading",
-              "ok": false,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "webkit",
-                  "projectName": "webkit",
-                  "results": [
-                    {
-                      "workerIndex": 8,
-                      "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 2,
-                      "error": {
-                        "message": "Error: browserType.launch: \n╔══════════════════════════════════════════════════════╗\n║ Host system is missing dependencies to run browsers. ║\n║ Missing libraries:                                   ║\n║     libgstreamer-1.0.so.0                            ║\n║     libgtk-4.so.1                                    ║\n║     libgraphene-1.0.so.0                             ║\n║     libicudata.so.74                                 ║\n║     libicui18n.so.74                                 ║\n║     libicuuc.so.74                                   ║\n║     libxslt.so.1                                     ║\n║     libwoff2dec.so.1.0.2                             ║\n║     libvpx.so.9                                      ║\n║     libevent-2.1.so.7                                ║\n║     libopus.so.0                                     ║\n║     libgstallocators-1.0.so.0                        ║\n║     libgstapp-1.0.so.0                               ║\n║     libgstbase-1.0.so.0                              ║\n║     libgstpbutils-1.0.so.0                           ║\n║     libgstaudio-1.0.so.0                             ║\n║     libgsttag-1.0.so.0                               ║\n║     libgstvideo-1.0.so.0                             ║\n║     libgstgl-1.0.so.0                                ║\n║     libgstcodecparsers-1.0.so.0                      ║\n║     libgstfft-1.0.so.0                               ║\n║     libflite.so.1                                    ║\n║     libflite_usenglish.so.1                          ║\n║     libflite_cmu_grapheme_lang.so.1                  ║\n║     libflite_cmu_grapheme_lex.so.1                   ║\n║     libflite_cmu_indic_lang.so.1                     ║\n║     libflite_cmu_indic_lex.so.1                      ║\n║     libflite_cmulex.so.1                             ║\n║     libflite_cmu_time_awb.so.1                       ║\n║     libflite_cmu_us_awb.so.1                         ║\n║     libflite_cmu_us_kal16.so.1                       ║\n║     libflite_cmu_us_kal.so.1                         ║\n║     libflite_cmu_us_rms.so.1                         ║\n║     libflite_cmu_us_slt.so.1                         ║\n║     libavif.so.16                                    ║\n║     libharfbuzz-icu.so.0                             ║\n║     libwebpmux.so.3                                  ║\n║     libenchant-2.so.2                                ║\n║     libsecret-1.so.0                                 ║\n║     libhyphen.so.0                                   ║\n║     libmanette-0.2.so.0                              ║\n║     libGLESv2.so.2                                   ║\n║     libx264.so                                       ║\n╚══════════════════════════════════════════════════════╝",
-                        "stack": "Error: browserType.launch: \n╔══════════════════════════════════════════════════════╗\n║ Host system is missing dependencies to run browsers. ║\n║ Missing libraries:                                   ║\n║     libgstreamer-1.0.so.0                            ║\n║     libgtk-4.so.1                                    ║\n║     libgraphene-1.0.so.0                             ║\n║     libicudata.so.74                                 ║\n║     libicui18n.so.74                                 ║\n║     libicuuc.so.74                                   ║\n║     libxslt.so.1                                     ║\n║     libwoff2dec.so.1.0.2                             ║\n║     libvpx.so.9                                      ║\n║     libevent-2.1.so.7                                ║\n║     libopus.so.0                                     ║\n║     libgstallocators-1.0.so.0                        ║\n║     libgstapp-1.0.so.0                               ║\n║     libgstbase-1.0.so.0                              ║\n║     libgstpbutils-1.0.so.0                           ║\n║     libgstaudio-1.0.so.0                             ║\n║     libgsttag-1.0.so.0                               ║\n║     libgstvideo-1.0.so.0                             ║\n║     libgstgl-1.0.so.0                                ║\n║     libgstcodecparsers-1.0.so.0                      ║\n║     libgstfft-1.0.so.0                               ║\n║     libflite.so.1                                    ║\n║     libflite_usenglish.so.1                          ║\n║     libflite_cmu_grapheme_lang.so.1                  ║\n║     libflite_cmu_grapheme_lex.so.1                   ║\n║     libflite_cmu_indic_lang.so.1                     ║\n║     libflite_cmu_indic_lex.so.1                      ║\n║     libflite_cmulex.so.1                             ║\n║     libflite_cmu_time_awb.so.1                       ║\n║     libflite_cmu_us_awb.so.1                         ║\n║     libflite_cmu_us_kal16.so.1                       ║\n║     libflite_cmu_us_kal.so.1                         ║\n║     libflite_cmu_us_rms.so.1                         ║\n║     libflite_cmu_us_slt.so.1                         ║\n║     libavif.so.16                                    ║\n║     libharfbuzz-icu.so.0                             ║\n║     libwebpmux.so.3                                  ║\n║     libenchant-2.so.2                                ║\n║     libsecret-1.so.0                                 ║\n║     libhyphen.so.0                                   ║\n║     libmanette-0.2.so.0                              ║\n║     libGLESv2.so.2                                   ║\n║     libx264.so                                       ║\n╚══════════════════════════════════════════════════════╝"
-                      },
-                      "errors": [
-                        {
-                          "message": "Error: browserType.launch: \n╔══════════════════════════════════════════════════════╗\n║ Host system is missing dependencies to run browsers. ║\n║ Missing libraries:                                   ║\n║     libgstreamer-1.0.so.0                            ║\n║     libgtk-4.so.1                                    ║\n║     libgraphene-1.0.so.0                             ║\n║     libicudata.so.74                                 ║\n║     libicui18n.so.74                                 ║\n║     libicuuc.so.74                                   ║\n║     libxslt.so.1                                     ║\n║     libwoff2dec.so.1.0.2                             ║\n║     libvpx.so.9                                      ║\n║     libevent-2.1.so.7                                ║\n║     libopus.so.0                                     ║\n║     libgstallocators-1.0.so.0                        ║\n║     libgstapp-1.0.so.0                               ║\n║     libgstbase-1.0.so.0                              ║\n║     libgstpbutils-1.0.so.0                           ║\n║     libgstaudio-1.0.so.0                             ║\n║     libgsttag-1.0.so.0                               ║\n║     libgstvideo-1.0.so.0                             ║\n║     libgstgl-1.0.so.0                                ║\n║     libgstcodecparsers-1.0.so.0                      ║\n║     libgstfft-1.0.so.0                               ║\n║     libflite.so.1                                    ║\n║     libflite_usenglish.so.1                          ║\n║     libflite_cmu_grapheme_lang.so.1                  ║\n║     libflite_cmu_grapheme_lex.so.1                   ║\n║     libflite_cmu_indic_lang.so.1                     ║\n║     libflite_cmu_indic_lex.so.1                      ║\n║     libflite_cmulex.so.1                             ║\n║     libflite_cmu_time_awb.so.1                       ║\n║     libflite_cmu_us_awb.so.1                         ║\n║     libflite_cmu_us_kal16.so.1                       ║\n║     libflite_cmu_us_kal.so.1                         ║\n║     libflite_cmu_us_rms.so.1                         ║\n║     libflite_cmu_us_slt.so.1                         ║\n║     libavif.so.16                                    ║\n║     libharfbuzz-icu.so.0                             ║\n║     libwebpmux.so.3                                  ║\n║     libenchant-2.so.2                                ║\n║     libsecret-1.so.0                                 ║\n║     libhyphen.so.0                                   ║\n║     libmanette-0.2.so.0                              ║\n║     libGLESv2.so.2                                   ║\n║     libx264.so                                       ║\n╚══════════════════════════════════════════════════════╝"
-                        }
-                      ],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-08-14T15:44:29.418Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "unexpected"
-                }
-              ],
-              "id": "707a2a88ec2627813456-679687a7926bbc8f9047",
-              "file": "game-smoke.test.ts",
-              "line": 142,
+              "line": 4,
               "column": 7
             }
           ]
@@ -684,11 +306,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-08-14T15:43:54.664Z",
-    "duration": 38906.335999999996,
+    "startTime": "2025-08-15T03:26:12.442Z",
+    "duration": 99195.334,
     "expected": 0,
     "skipped": 0,
-    "unexpected": 9,
+    "unexpected": 3,
     "flaky": 0
   }
 }

@@ -2,7 +2,7 @@
 
 ```yaml
 - text: "TACTICAL ANALYTICS v2.1.0 SEED:"
-- textbox "42": daily-2025-08-14
+- textbox "42": daily-2025-08-15
 - text: PAUSED
 - button "Reset to Turn 0"
 - button "Start Simulation"
@@ -24,19 +24,19 @@
   - option "Name"
 - text: infra-0 H
 - button "Focus on Map"
-- text: INFRA 0 86% 44s infra-1 H
+- text: INFRA 0 89% 3m infra-1 H
 - button "Focus on Map"
-- text: INFRA 1 91% 3m infra-2 H
+- text: INFRA 1 85% 3m infra-2 H
 - button "Focus on Map"
-- text: INFRA 2 91% 2m infra-3 H
+- text: INFRA 2 91% 1m infra-3 H
 - button "Focus on Map"
-- text: INFRA 3 90% 3m infra-4 H
+- text: INFRA 3 92% 36s infra-4 H
 - button "Focus on Map"
-- text: INFRA 4 88% 36s infra-5 H
+- text: INFRA 4 99% 3m infra-5 H
 - button "Focus on Map"
-- text: INFRA 5 85% 2m infra-6 H
+- text: INFRA 5 89% 3m infra-6 H
 - button "Focus on Map"
-- text: INFRA 6 92% 3m
+- text: INFRA 6 97% 4m
 - button "AUTO"
 - button "CENTER"
 - button "OVERVIEW"
@@ -93,6 +93,6 @@
 - heading "Settings" [level=3]:
   - button "Settings"
 - button
-- text: Ready Gates fonts 103ms store 16ms map 9727ms simWorker — perfWorker — heatmaps — 3/6 ready Fictional, abstract simulation • No real-world guidance
+- text: Ready Gates fonts 77ms store 11ms map 5267ms simWorker — perfWorker — heatmaps — 3/6 ready Fictional, abstract simulation • No real-world guidance
 - alert
 ```
