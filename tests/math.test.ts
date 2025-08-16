@@ -204,7 +204,7 @@ describe('Expected Value Mathematics', () => {
       // EV = -cost + P(hostile) * value - P(infra) * penalty
       // EV = -50 + 0.8 * 100 - 0.1 * 200 = -50 + 80 - 20 = 10
       expect(result.expectedValue).toBeCloseTo(10, 1);
-      expect(result.costOfStrike).toBe(50);
+      expect(result.cost).toBe(50);
     });
 
     it('should account for Area of Effect', () => {
@@ -247,8 +247,8 @@ describe('Expected Value Mathematics', () => {
       
       const result = calculateStrikeEV(grid, 2, 2, 1, config);
       
-      expect(result.collateralRisk).toBeGreaterThan(0);
-      expect(result.collateralRisk).toBeLessThanOrEqual(1);
+      expect(result.infraHitProbability).toBeGreaterThan(0);
+      expect(result.infraHitProbability).toBeLessThanOrEqual(1);
     });
   });
 

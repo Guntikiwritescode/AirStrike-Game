@@ -110,8 +110,6 @@ export function calculateStrikeEV(
     expectedReward,
     expectedPenalty,
     cost,
-    costOfStrike: cost, // Alias for backwards compatibility
-    collateralRisk: maxInfraProbability, // Alias for collateral risk
     affectedCells,
   };
 }
