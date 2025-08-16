@@ -11,13 +11,27 @@ const createArbitrary = {
     gridSize: fc.constant(5),
     initialBudget: fc.integer({ min: 100, max: 1000 }),
     maxTurns: fc.integer({ min: 5, max: 20 }),
-    costRecon: fc.integer({ min: 5, max: 20 }),
-    costStrike: fc.integer({ min: 20, max: 100 }),
-    valueHostileNeutralized: fc.integer({ min: 50, max: 200 }),
-    penaltyInfraHit: fc.integer({ min: 100, max: 500 }),
-    collateralConstraint: fc.float({ min: Math.fround(0.1), max: Math.fround(0.5) }),
+    reconCost: fc.integer({ min: 5, max: 20 }),
+    strikeCost: fc.integer({ min: 20, max: 100 }),
+    hostileValue: fc.integer({ min: 50, max: 200 }),
+    infraPenalty: fc.integer({ min: 100, max: 500 }),
+    collateralThreshold: fc.float({ min: Math.fround(0.1), max: Math.fround(0.5) }),
+    riskAversion: fc.float({ min: Math.fround(0.01), max: Math.fround(0.5) }),
     showTruthOverlay: fc.boolean(),
-    seed: fc.constant('test-seed')
+    seed: fc.constant('test-seed'),
+    spatialField: fc.record({
+      noiseScale: fc.float({ min: Math.fround(0.1), max: Math.fround(1.0) }),
+      smoothingSigma: fc.float({ min: Math.fround(0.5), max: Math.fround(2.0) }),
+      logisticSteepness: fc.float({ min: Math.fround(1.0), max: Math.fround(10.0) }),
+      hostileBaseProbability: fc.float({ min: Math.fround(0.1), max: Math.fround(0.5) }),
+      infraBaseProbability: fc.float({ min: Math.fround(0.05), max: Math.fround(0.3) })
+    }),
+    betaPriors: fc.record({
+      hostileAlpha: fc.float({ min: Math.fround(1.0), max: Math.fround(5.0) }),
+      hostileBeta: fc.float({ min: Math.fround(5.0), max: Math.fround(15.0) }),
+      infraAlpha: fc.float({ min: Math.fround(1.0), max: Math.fround(3.0) }),
+      infraBeta: fc.float({ min: Math.fround(7.0), max: Math.fround(20.0) })
+    })
   }),
 
   gameCell: (): fc.Arbitrary<GameCell> => fc.record({
@@ -487,7 +501,7 @@ describe('Property-Based Tests', () => {
           expect(result.collateralRisk).toBeCloseTo(expectedRisk, 2);
 
           // Property: Should flag constraint violation correctly
-          if (result.collateralRisk > config.collateralConstraint) {
+          if (result.collateralRisk > config.collateralThreshold) {
             expect(result.violatesConstraint).toBe(true);
           }
         }

@@ -80,10 +80,10 @@ export const useBudgetStatus = () => useGameStore(
     
     return {
       remainingBudget: budget,
-      canRecon: budget >= config.costRecon,
-      canStrike: budget >= config.costStrike,
-      isLow: budget < (config.costRecon * 2), // Less than 2 recon actions
-      isCritical: budget < Math.min(config.costRecon, config.costStrike)
+      canRecon: budget >= config.reconCost,
+      canStrike: budget >= config.strikeCost,
+      isLow: budget < (config.reconCost * 2), // Less than 2 recon actions
+      isCritical: budget < Math.min(config.reconCost, config.strikeCost)
     };
   }
 );
