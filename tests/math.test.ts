@@ -204,7 +204,7 @@ describe('Expected Value Mathematics', () => {
       // EV = -cost + P(hostile) * value - P(infra) * penalty
       // EV = -50 + 0.8 * 100 - 0.1 * 200 = -50 + 80 - 20 = 10
       expect(result.expectedValue).toBeCloseTo(10, 1);
-      expect(result.costOfStrike).toBe(50);
+      expect(result.cost).toBe(50);
     });
 
     it('should account for Area of Effect', () => {
@@ -247,8 +247,8 @@ describe('Expected Value Mathematics', () => {
       
       const result = calculateStrikeEV(grid, 2, 2, 1, config);
       
-      expect(result.collateralRisk).toBeGreaterThan(0);
-      expect(result.collateralRisk).toBeLessThanOrEqual(1);
+      expect(result.infraHitProbability).toBeGreaterThan(0);
+      expect(result.infraHitProbability).toBeLessThanOrEqual(1);
     });
   });
 
@@ -417,13 +417,27 @@ describe('Mathematical Invariants', () => {
       gridSize: 5,
       initialBudget: 1000,
       maxTurns: 10,
-      costRecon: 10,
-      costStrike: 50,
-      valueHostileNeutralized: 100,
-      penaltyInfraHit: 200,
-      collateralConstraint: 0.3,
+      reconCost: 10,
+      strikeCost: 50,
+      hostileValue: 100,
+      infraPenalty: 200,
+      collateralThreshold: 0.3,
+      riskAversion: 0.1,
       showTruthOverlay: false,
-      seed: 'test-seed'
+      seed: 'test-seed',
+      spatialField: {
+        noiseScale: 0.5,
+        smoothingSigma: 1.0,
+        logisticSteepness: 5.0,
+        hostileBaseProbability: 0.2,
+        infraBaseProbability: 0.1
+      },
+      betaPriors: {
+        hostileAlpha: 2,
+        hostileBeta: 8,
+        infraAlpha: 1,
+        infraBeta: 9
+      }
     };
   }
 });
